@@ -1,0 +1,8 @@
+node_modules/
+dist/
+ui-dist/
+*.log
+
+# Real Review Bundles (per ADR 0004) — may contain another org's proprietary code,
+# screenshots, or CI logs. Only synthetic bundles under fixtures/ are ever committed.
+.bundles/

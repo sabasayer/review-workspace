@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "abc1111",
+    "head": "def2222"
+  },
+  "behavioralGroups": [
+    {
+      "id": "bg-1",
+      "title": "Rate-limit login attempts",
+      "order": 0,
+      "targets": [
+        { "type": "file", "path": "src/does-not-exist.ts" },
+        { "type": "hunk", "path": "src/auth/login.ts", "hunkIndex": 5 },
+        { "type": "binary", "path": "src/auth/login.ts" }
+      ]
+    }
+  ],
+  "annotations": [
+    {
+      "id": "an-1",
+      "target": {
+        "type": "line",
+        "path": "src/auth/login.ts",
+        "side": "head",
+        "line": 42,
+        "expectedText": "this text does not match the patch"
+      },
+      "summary": "Stale line reference for testing"
+    },
+    {
+      "id": "an-2",
+      "target": { "type": "file", "path": "src/auth/login.ts" }
+    },
+    {
+      "id": "an-3",
+      "target": { "type": "file", "path": "src/auth/login.ts" },
+      "summary": "Related-target diagnostic reuse test",
+      "relatedTargets": [
+        { "target": { "type": "file", "path": "src/related-file-does-not-exist.ts" }, "reason": "test" }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "observed",
+      "description": "References an asset that was never added to assets/",
+      "assetPath": "missing.png"
+    }
+  ]
+}

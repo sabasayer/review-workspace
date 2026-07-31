@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "abc1111",
+    "head": "def2222"
+  },
+  "evidence": [
+    { "id": "ev-traversal", "kind": "observed", "description": "path traversal attempt", "assetPath": "../../outside.png" },
+    { "id": "ev-badtype", "kind": "observed", "description": "disallowed media type", "assetPath": "notes.txt" },
+    { "id": "ev-big", "kind": "observed", "description": "oversized asset", "assetPath": "big.png" }
+  ]
+}

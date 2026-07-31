@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "abc1111",
+    "head": "def2222"
+  },
+  "evidence": [
+    {
+      "id": "ev-paired",
+      "kind": "observed",
+      "description": "Visual snapshot before/after the change.",
+      "targetIds": ["assets/logo.png"],
+      "assetPath": "snapshot/head.png",
+      "baseAssetPath": "snapshot/base.png"
+    },
+    {
+      "id": "ev-single",
+      "kind": "observed",
+      "description": "A single reference screenshot with no counterpart to compare against.",
+      "targetIds": ["assets/logo.png"],
+      "assetPath": "snapshot/head.png"
+    }
+  ]
+}

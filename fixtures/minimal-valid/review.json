@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "abc1111",
+    "head": "def2222"
+  }
+}

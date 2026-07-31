@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "abc1111",
+    "head": "def2222"
+  },
+  "answers": [
+    {
+      "id": "ans-1",
+      "questionId": "q-does-not-exist",
+      "body": "This references a Question that was never raised."
+    }
+  ]
+}

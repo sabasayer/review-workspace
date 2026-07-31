@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-workspace.dev/schemas/review-document.schema.json",
+  "title": "Review Document",
+  "type": "object",
+  "required": ["schemaVersion", "comparison"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "comparison": {
+      "type": "object",
+      "required": ["base", "head"],
+      "additionalProperties": false,
+      "properties": {
+        "base": { "type": "string", "minLength": 1 },
+        "head": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string" },
+        "title": { "type": "string" },
+        "number": { "type": "string" },
+        "url": { "type": "string" },
+        "author": { "type": "string" },
+        "sourceBranch": { "type": "string" },
+        "targetBranch": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "behavioralGroups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/behavioralGroup" }
+    },
+    "annotations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/annotation" }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "verification": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/verificationItem" }
+    },
+    "answers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/answer" }
+    }
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "required": ["type", "path"],
+      "properties": {
+        "type": { "enum": ["file", "hunk", "line", "binary"] },
+        "path": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "hunk" } } },
+          "then": {
+            "required": ["hunkIndex"],
+            "properties": { "hunkIndex": { "type": "integer", "minimum": 0 } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "line" } } },
+          "then": {
+            "required": ["side", "line", "expectedText"],
+            "properties": {
+              "side": { "enum": ["base", "head"] },
+              "line": { "type": "integer", "minimum": 1 },
+              "expectedText": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "behavioralGroup": {
+      "type": "object",
+      "required": ["id", "title", "order"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "order": { "type": "integer", "minimum": 0 },
+        "risk": { "enum": ["low", "medium", "high"] },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/target" } }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["id", "target", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "target": { "$ref": "#/$defs/target" },
+        "summary": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["intent", "behavior", "risk"] },
+        "evidenceIds": { "type": "array", "items": { "type": "string" } },
+        "relatedTargets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["target", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "target": { "$ref": "#/$defs/target" },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["id", "kind", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["observed", "author-claim", "inference"] },
+        "description": { "type": "string", "minLength": 1 },
+        "targetIds": { "type": "array", "items": { "type": "string" } },
+        "assetPath": { "type": "string" },
+        "baseAssetPath": { "type": "string" },
+        "pipeline": {
+          "type": "object",
+          "required": ["jobName", "status", "url"],
+          "additionalProperties": false,
+          "properties": {
+            "jobName": { "type": "string", "minLength": 1 },
+            "status": { "enum": ["success", "failed", "running", "canceled", "skipped"] },
+            "url": { "type": "string", "minLength": 1 },
+            "logExcerpt": { "type": "string" }
+          }
+        }
+      }
+    },
+    "verificationItem": {
+      "type": "object",
+      "required": ["id", "description", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["unverified", "verified", "gap"] },
+        "targetIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "answer": {
+      "type": "object",
+      "required": ["id", "questionId", "body"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "questionId": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "evidenceIds": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

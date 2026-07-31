@@ -1,0 +1,7 @@
+--- assets/old-logo.png
++++ assets/old-logo.png
+Binary files a/assets/old-logo.png and /dev/null differ
+--- src/a.ts
++++ src/a.ts
+@@ -0,0 +1 @@
++export const a = 1

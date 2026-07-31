@@ -1,0 +1,10 @@
+--- a.json
++++ a.json
+@@ -0,0 +1,2 @@
++{
++}
+\ No newline at end of file
+--- b.ts
++++ b.ts
+@@ -0,0 +1 @@
++export const b = 1

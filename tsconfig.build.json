@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    // Source imports use explicit .ts extensions so Node's own type-stripping can run
+    // them directly from a checkout (see README) — this rewrites them to .js in the
+    // emitted output, since Node won't resolve a real .ts specifier at runtime there.
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

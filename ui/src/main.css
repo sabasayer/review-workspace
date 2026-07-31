@@ -1,0 +1,85 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/*
+ * Design tokens ported from an earlier discovery prototype via Nuxt UI's documented
+ * CSS-variable override mechanism (docs/getting-started/theme/css-variables) —
+ * remapping --ui-* here means every component already using semantic utility
+ * classes (bg-elevated, text-muted, border-default, etc.) picks up the prototype's
+ * palette automatically, with no per-component changes needed.
+ */
+
+@theme {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+  --ui-radius: 0.75rem; /* prototype --radius: 12px */
+
+  --ui-bg: #f5f7fa; /* prototype --bg */
+  --ui-bg-muted: #e8edf2; /* prototype --panel-3 */
+  --ui-bg-elevated: #ffffff; /* prototype --panel */
+  --ui-bg-accented: #e8edf2; /* prototype --panel-3 */
+
+  --ui-text: #17212b; /* prototype --text */
+  --ui-text-highlighted: #17212b;
+  --ui-text-toned: #526170; /* prototype --muted */
+  --ui-text-muted: #526170;
+  --ui-text-dimmed: #71808f; /* prototype --dim */
+
+  --ui-border: #d7dee6; /* prototype --line */
+  --ui-border-muted: #e8edf2; /* prototype --line-soft */
+  --ui-border-accented: #d7dee6;
+
+  --ui-primary: #087f5b; /* prototype --green */
+  --ui-secondary: #245fbf; /* prototype --blue */
+  --ui-success: #087f5b;
+  --ui-info: #245fbf;
+  --ui-warning: #9a6200; /* prototype --amber */
+  --ui-error: #c0363f; /* prototype --red */
+
+  --syntax-text: #273444;
+  --syntax-comment: #72808e;
+  --syntax-keyword: #9c2f76;
+  --syntax-string: #327a3f;
+  --syntax-number: #a85d00;
+  --syntax-function: #1e62b7;
+  --syntax-type: #8a5a00;
+  --syntax-property: #087e8b;
+  --syntax-operator: #536273;
+}
+
+.dark {
+  --ui-bg: #0c1014; /* prototype --bg */
+  --ui-bg-muted: #18212b; /* prototype --panel-2 */
+  --ui-bg-elevated: #121820; /* prototype --panel */
+  --ui-bg-accented: #202b37; /* prototype --panel-3 */
+
+  --ui-text: #f4f7fa; /* prototype --text */
+  --ui-text-highlighted: #ffffff;
+  --ui-text-toned: #aeb9c4; /* prototype --muted */
+  --ui-text-muted: #aeb9c4;
+  --ui-text-dimmed: #82909e; /* prototype --dim */
+
+  --ui-border: #2c3946; /* prototype --line */
+  --ui-border-muted: #222d38; /* prototype --line-soft */
+  --ui-border-accented: #2c3946;
+
+  --ui-primary: #62d9b3; /* prototype --green */
+  --ui-secondary: #8ab4ff; /* prototype --blue */
+  --ui-success: #62d9b3;
+  --ui-info: #8ab4ff;
+  --ui-warning: #f0bd68; /* prototype --amber */
+  --ui-error: #ff8989; /* prototype --red */
+
+  --syntax-text: #d8e1ea;
+  --syntax-comment: #7f8c98;
+  --syntax-keyword: #f08cc6;
+  --syntax-string: #9edb91;
+  --syntax-number: #f0b56d;
+  --syntax-function: #82b7ff;
+  --syntax-type: #e5c07b;
+  --syntax-property: #79d2d2;
+  --syntax-operator: #aeb9c4;
+}

@@ -1,0 +1,11 @@
+--- src/a.ts
++++ src/a.ts
+@@ -1,2 +1,2 @@
+-export const a = 1
++export const a = 2
+ export const b = 2
+--- src/b.ts
++++ src/b.ts
+@@ -5,1 +5,1 @@
+-const x = 1
++const x = 2

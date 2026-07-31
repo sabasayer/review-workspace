@@ -1,0 +1,71 @@
+import type { ReviewDocument, Target } from '../schema/types.ts'
+import type { Concern, ReviewState } from '../review-state/types.ts'
+
+function formatTarget(target: Target): string {
+  switch (target.type) {
+    case 'file':
+      return target.path
+    case 'hunk':
+      return `${target.path}#hunk${target.hunkIndex}`
+    case 'binary':
+      return `${target.path} (binary)`
+    case 'line':
+      return `${target.path}:${target.line} (${target.side})`
+  }
+}
+
+export function buildConcernComment(concern: Concern): string {
+  const prefix = concern.target ? `[${formatTarget(concern.target)}] ` : ''
+  return `${prefix}${concern.note}`
+}
+
+/** One comment per Concern, plain text — pasteable individually into an external tool. */
+export function buildConcernComments(state: ReviewState): string[] {
+  return state.concerns.map(buildConcernComment)
+}
+
+/**
+ * A self-contained Markdown report — no server needed to view it afterward.
+ * Read-only with respect to the bundle: never mutates state.json or questions.jsonl.
+ */
+export function buildReport(document: ReviewDocument, state: ReviewState): string {
+  const lines: string[] = []
+  lines.push('# Review Report')
+  lines.push('')
+  lines.push(`**Comparison:** ${document.comparison.base} → ${document.comparison.head}`)
+  lines.push(`**Decision:** ${state.decision}`)
+  lines.push('')
+
+  lines.push('## Behavioral Groups')
+  const groups = document.behavioralGroups ?? []
+  if (groups.length === 0) {
+    lines.push('_None declared._')
+  } else {
+    for (const group of [...groups].sort((a, b) => a.order - b.order)) {
+      const progress = state.groups[group.id]
+      lines.push(
+        `- **${group.title}** — understood: ${progress?.understood ? 'yes' : 'no'}, verified: ${progress?.verified ? 'yes' : 'no'}`,
+      )
+    }
+  }
+  lines.push('')
+
+  lines.push('## Concerns')
+  if (state.concerns.length === 0) {
+    lines.push('_None raised._')
+  } else {
+    for (const comment of buildConcernComments(state)) {
+      lines.push(`- ${comment}`)
+    }
+  }
+  lines.push('')
+
+  lines.push('## Notes')
+  if (state.notes.length === 0) {
+    lines.push('_None._')
+  } else {
+    for (const note of state.notes) lines.push(`- ${note}`)
+  }
+
+  return lines.join('\n') + '\n'
+}
