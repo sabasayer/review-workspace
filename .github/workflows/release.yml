@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch: {} # manual retry against current main, without needing a throwaway commit
 
 concurrency:
   group: release
