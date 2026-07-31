@@ -19,11 +19,15 @@ Goal: keep this on personal GitHub, publish to npm so people can `npx review-wor
 - [x] `npm publish --provenance` enabled via `publishConfig.provenance: true` in `package.json` (works automatically in GitHub Actions' OIDC context, `id-token: write` permission already set in the workflow).
 - [x] Dry-ran `semantic-release --dry-run --no-ci` locally (needed Node ≥24.10 — semantic-release 25's own floor is stricter than this repo's `engines`; used `nvm use 24.14.0`) — plugin pipeline resolves cleanly end to end, only failing on the expected missing/dummy tokens.
 - [ ] **You still need to do this manually** (can't be done from here): create an npm access token (Automation-type, so it isn't blocked by npm's 2FA-for-publish requirement) and add it as the `NPM_TOKEN` secret in the GitHub repo's Settings → Secrets → Actions. `GITHUB_TOKEN` is automatic, no setup needed.
-- [ ] Push this repo to `https://github.com/sabasayer/review-workspace` (it isn't there yet) — the release workflow only runs once there's a `main` branch on GitHub to push to.
+- [x] Repo pushed to `https://github.com/sabasayer/review-workspace` — turned out it was already live (see hygiene note below); the release workflow will run on the next push to `main` once `NPM_TOKEN` is set.
 
 ## Repo hygiene before going public
 
 - [x] Scrubbed employer-specific references from `CONTEXT.md`, `README.md`, `docs/`, `fixtures/`, `ui/src/main.css` — found two real hits (an internal repo name in README, an internal discovery-prototype path/MR number in a CSS comment), both genericized. Copied the actual Generator skill (`SKILL.md`/`FRAMEWORK.md`) into `skills/review-workspace/` so the README's pointer is real instead of dangling.
 - [x] `.gitignore` **did not actually exclude `.bundles/`** — a real gap, now fixed (real Review Bundles, e.g. the one with actual employer code/screenshots sitting there right now, must never enter a commit per ADR 0004). Confirmed via `git log` that no real bundle was ever historically committed.
-- [x] Every commit's author email was the real employer address (`salih.sayer@founda.com`) — decided to squash all history into a single fresh commit with personal author info before the first public push (safe since nothing's been pushed to GitHub yet).
-- [ ] Add a short `CONTRIBUTING.md` / issue template since external people will be filing feedback.
+- [x] Every commit's author email was the real employer address (`salih.sayer@founda.com`) — **turned out the repo was already pushed and public on GitHub**, not pre-push as originally assumed. Squashed all history into one fresh commit (`Salih Sayer <45066901+sabasayer@users.noreply.github.com>`) and force-pushed over the public `origin/main`, after explicit confirmation given the changed risk (this rewrites a live remote's history, not just local cleanup).
+- [x] Added `CONTRIBUTING.md` (setup, Conventional Commits requirement, fixtures-not-real-bundles rule) and a single `.github/ISSUE_TEMPLATE.md`.
+
+## All done
+
+Only remaining manual step: add the `NPM_TOKEN` secret (see above), then the next `feat:`/`fix:` commit to `main` publishes itself.
