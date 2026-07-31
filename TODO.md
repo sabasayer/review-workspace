@@ -18,7 +18,13 @@ Goal: keep this on personal GitHub, publish to npm so people can `npx review-wor
 - [x] Requires [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`/`fix:`/`feat!:`/etc.) going forward — documented in README's new "Releasing" section. A commit without a recognized type just doesn't trigger a release (safe no-op, not an error).
 - [x] `npm publish --provenance` enabled via `publishConfig.provenance: true` in `package.json` (works automatically in GitHub Actions' OIDC context, `id-token: write` permission already set in the workflow).
 - [x] Dry-ran `semantic-release --dry-run --no-ci` locally (needed Node ≥24.10 — semantic-release 25's own floor is stricter than this repo's `engines`; used `nvm use 24.14.0`) — plugin pipeline resolves cleanly end to end, only failing on the expected missing/dummy tokens.
-- [ ] **You still need to do this manually** (can't be done from here): create an npm access token (Automation-type, so it isn't blocked by npm's 2FA-for-publish requirement) and add it as the `NPM_TOKEN` secret in the GitHub repo's Settings → Secrets → Actions. `GITHUB_TOKEN` is automatic, no setup needed.
+- [x] Verified `@semantic-release/npm@13.1.5` (already installed) tries [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no long-lived token) first and only falls back to `NPM_TOKEN` if that fails — read the plugin's actual source (`verify-auth.js`, `trusted-publishing/oidc-context.js`, `token-exchange.js`) to confirm rather than assume. The workflow already has `id-token: write`, so **no code changes were needed** for this — it supports both paths as shipped.
+- [ ] **You still need to do this manually** (can't be done from here) — npm's Trusted Publisher UI only exists on a package's settings page, which only exists after a first publish, so there's a one-time bootstrap:
+  1. On npmjs.com, create a **Granular Access Token** (not "Automation"/classic, not the bypass-2FA option you saw) — read-write, scoped to just this package, short expiry (e.g. 7 days).
+  2. Add it as the `NPM_TOKEN` secret in the GitHub repo's Settings → Secrets → Actions.
+  3. Push a `feat:`/`fix:` commit to `main` — this triggers the first release and creates the package on npm via that token.
+  4. On the now-existing package's npmjs.com settings page, add a **Trusted Publisher**: GitHub Actions, owner `sabasayer`, repo `review-workspace`, workflow filename `release.yml` (no environment).
+  5. Delete the `NPM_TOKEN` GitHub secret and revoke the granular token on npmjs.com. Every release after this uses OIDC automatically — nothing left to rotate or leak.
 - [x] Repo pushed to `https://github.com/sabasayer/review-workspace` — turned out it was already live (see hygiene note below); the release workflow will run on the next push to `main` once `NPM_TOKEN` is set.
 
 ## Repo hygiene before going public
