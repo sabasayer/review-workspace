@@ -6,7 +6,17 @@ and `docs/spec.md` for the v1 spec.
 
 ## Reviewing an MR/PR
 
-This repo (the engine: schema, validator, CLI, server, UI) never fetches a Comparison or writes a Review Document itself — that's the Generator's job, a separate Claude Code skill (see `skills/review-workspace/`). Paste an MR/PR URL to Claude Code with that skill available and ask it to review it — the skill scaffolds a bundle under `.bundles/`, generates + publishes the Review Document, then `serve`s it (see below).
+This repo (the engine: schema, validator, CLI, server, UI) never fetches a Comparison or writes a Review Document itself — that's the Generator's job, a separate Claude Code skill (see `skills/review-workspace/`).
+
+**Install the skill** (one-time, requires [Claude Code](https://claude.com/claude-code) — CLI, desktop app, or the claude.ai/code web app; a plain claude.ai chat can't run it, since it shells out to `glab`/`gh`/`npx`):
+
+```sh
+mkdir -p ~/.claude/skills/review-workspace && cd ~/.claude/skills/review-workspace && curl -sO https://raw.githubusercontent.com/sabasayer/review-workspace/main/skills/review-workspace/SKILL.md && curl -sO https://raw.githubusercontent.com/sabasayer/review-workspace/main/skills/review-workspace/FRAMEWORK.md
+```
+
+Also requires `glab` (GitLab) or `gh` (GitHub) CLI, installed and authenticated — that's what fetches the MR/PR diff.
+
+**Use it**: paste an MR/PR URL to Claude Code and ask it to review it, e.g. "Review this MR using the review-workspace skill: `<url>`". The skill scaffolds a bundle under `.bundles/`, generates + publishes the Review Document, then `serve`s it (see below) — no local clone of this repo needed, `npx` fetches the CLI/UI on demand.
 
 To view an already-scaffolded bundle:
 
