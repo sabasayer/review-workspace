@@ -5,7 +5,7 @@ import { anchorId } from '../diff-layout.ts'
 import { renderMarkdown } from '../markdown.ts'
 import { highlightCode } from '../highlight.ts'
 import { resolveTargetPreview } from '../target-preview.ts'
-import { currentFiles } from '../view-model-store.ts'
+import { currentFiles } from '../composables/view-model-store.ts'
 
 const props = defineProps<{ annotation: Annotation; number: number }>()
 

@@ -160,6 +160,35 @@
     cursor: pointer;
   }
   .copy-btn:hover { color: var(--text); }
+
+  .screenshots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+  }
+  .screenshot {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .screenshot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-bottom: 1px solid var(--border);
+  }
+  .screenshot figcaption {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .screenshot figcaption strong {
+    display: block;
+    color: var(--text);
+    margin-bottom: 0.2em;
+  }
 </style>
 </head>
 <body>
@@ -251,9 +280,49 @@
   </div>
 </section>
 
+<section id="screenshots">
+  <div class="wrap">
+    <h2><span class="num">05</span>The UI</h2>
+    <p class="lede">
+      A local web UI for reading the Review Document alongside the diff — behavioral groups,
+      line-pinned annotations, image compare, and threaded questions. Screenshots from synthetic fixtures.
+    </p>
+    <div class="screenshots">
+      <figure class="screenshot">
+        <img src="screenshots/diff-review-side-by-side.png" alt="Side-by-side diff with behavioral groups and annotation badges" loading="lazy" width="960" height="540" />
+        <figcaption><strong>Side-by-side diff</strong>Behavioral groups, annotation badges, and MR header.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="screenshots/diff-review-inline.png" alt="Inline diff layout" loading="lazy" width="960" height="540" />
+        <figcaption><strong>Inline diff</strong>Same bundle in inline layout with collapsed/expanded hunks.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="screenshots/annotation-note-popover.png" alt="Annotation popover with evidence and related code link" loading="lazy" width="960" height="540" />
+        <figcaption><strong>Annotation popover</strong>Evidence, confidence, and links to related targets.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="screenshots/annotation-related-code-preview.png" alt="Related code preview on hover" loading="lazy" width="960" height="540" />
+        <figcaption><strong>Related code preview</strong>Hover a related-target link to peek at the other file.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="screenshots/questions-panel.png" alt="Questions slideover panel" loading="lazy" width="960" height="540" />
+        <figcaption><strong>Questions</strong>Threaded questions anchored to exact lines.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="screenshots/mr-details.png" alt="MR details slideover" loading="lazy" width="960" height="540" />
+        <figcaption><strong>MR details</strong>Metadata, pipeline evidence, and description.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="screenshots/image-compare-side-by-side.png" alt="Image compare side by side" loading="lazy" width="960" height="540" />
+        <figcaption><strong>Image compare</strong>Side-by-side, swipe, onion-skin, and changed-pixel modes.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
 <section id="quick-start">
   <div class="wrap">
-    <h2><span class="num">05</span>Quick start</h2>
+    <h2><span class="num">06</span>Quick start</h2>
     <p class="lede">Requires <a href="https://claude.com/claude-code">Claude Code</a> (CLI, desktop app, or claude.ai/code) and Node ≥24. A plain claude.ai chat can't run this — the skill shells out to <code>glab</code>/<code>gh</code>/<code>npx</code>.</p>
 
     <p><strong>1. Install the skill</strong> (one time):</p>

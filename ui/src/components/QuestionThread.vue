@@ -1,59 +1,27 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { Answer, Question, Target } from '../types.ts'
-import { raiseQuestion, useQuestionsStore, withdrawAndReplaceQuestion } from '../questions-store.ts'
+import { useQuestionThread } from '../composables/useQuestionThread.ts'
 
 const props = defineProps<{ target?: Target; questions: readonly Question[]; answers: readonly Answer[] }>()
 
-const store = useQuestionsStore()
-const draft = ref('')
-const busy = ref(false)
-const localError = ref<string | null>(null)
+const {
+  store,
+  draft,
+  busy,
+  localError,
+  editingId,
+  editDraft,
+  submitNewQuestion,
+  startEdit,
+  submitEdit,
+} = useQuestionThread(() => props.target)
+
+const hasToken = computed(() => store.writeToken.length > 0)
 
 function answerFor(questionId: string): Answer | undefined {
   return props.answers.find((a) => a.questionId === questionId)
 }
-
-async function submitNewQuestion(close: () => void) {
-  if (!draft.value.trim()) return
-  busy.value = true
-  localError.value = null
-  try {
-    await raiseQuestion(draft.value.trim(), props.target)
-    draft.value = ''
-    close()
-  } catch (err) {
-    localError.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    busy.value = false
-  }
-}
-
-const editingId = ref<string | null>(null)
-const editDraft = ref('')
-
-function startEdit(q: Question) {
-  editingId.value = q.id
-  editDraft.value = ''
-}
-
-async function submitEdit(q: Question, close: () => void) {
-  if (!editDraft.value.trim()) return
-  busy.value = true
-  localError.value = null
-  try {
-    await withdrawAndReplaceQuestion(q.id, editDraft.value.trim(), props.target)
-    editingId.value = null
-    editDraft.value = ''
-    close()
-  } catch (err) {
-    localError.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    busy.value = false
-  }
-}
-
-const hasToken = computed(() => store.writeToken.length > 0)
 </script>
 
 <template>
@@ -84,11 +52,11 @@ const hasToken = computed(() => store.writeToken.length > 0)
           <p v-else-if="q.status === 'open'" class="mb-2 text-muted italic">Not answered yet.</p>
 
           <template v-if="q.status === 'open'">
-            <UButton v-if="editingId !== q.id" size="xs" variant="ghost" @click="startEdit(q)">Withdraw &amp; rephrase</UButton>
+            <UButton v-if="editingId !== q.id" size="xs" variant="ghost" @click="startEdit(q.id)">Withdraw &amp; rephrase</UButton>
             <template v-else>
               <UTextarea v-model="editDraft" size="sm" class="mt-1 w-full" :rows="2" placeholder="Better phrased question…" />
               <div class="mt-1 flex gap-2">
-                <UButton size="xs" :disabled="busy || !hasToken" @click="submitEdit(q, close)">Submit</UButton>
+                <UButton size="xs" :disabled="busy || !hasToken" @click="submitEdit(q.id, close)">Submit</UButton>
                 <UButton size="xs" variant="ghost" @click="editingId = null">Cancel</UButton>
               </div>
               <p v-if="!hasToken" class="mt-1 text-warning">Set your write token first (top right).</p>

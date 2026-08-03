@@ -1,8 +1,9 @@
 # Review Workspace
 
 A local, offline decision surface for reviewing a code Comparison. See
-`docs/framework.md` for product rules, `CONTEXT.md` for the domain glossary,
-and `docs/spec.md` for the v1 spec.
+`docs/framework.md` for product rules, `docs/development.md` for code and
+testing conventions, `CONTEXT.md` for the domain glossary, and `docs/spec.md`
+for the v1 spec. AI agents: read `AGENTS.md` or `CLAUDE.md` first.
 
 ## Reviewing an MR/PR
 
@@ -35,10 +36,14 @@ Opens the UI at `http://127.0.0.1:4317` (prints a write token too — needed onl
 
 ```sh
 pnpm install
-pnpm test         # vitest
-pnpm typecheck    # tsc --noEmit, doubling as lint (ponytail: no separate linter yet)
-pnpm build:ui     # builds ui/ and copies it to ui-dist/ so `serve` hosts the UI itself
+pnpm test              # vitest — engine + ui unit tests
+pnpm test:e2e          # playwright — e2e + doc screenshots
+pnpm test:e2e:update   # refresh visual baselines after intentional UI changes
+pnpm typecheck         # tsc --noEmit, doubling as lint (ponytail: no separate linter yet)
+pnpm build:ui          # builds ui/ and copies it to ui-dist/ so `serve` hosts the UI itself
 ```
+
+Code style, architecture, and testing rules: [`docs/development.md`](docs/development.md).
 
 While developing the UI itself, run the two pieces separately instead — `node src/cli.ts serve .bundles/<name> --port 4317` for the API, and `cd ui && pnpm dev` for the UI with hot reload (its Vite dev server proxies `/api/*` to the port above).
 

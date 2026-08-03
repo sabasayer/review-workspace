@@ -1,5 +1,5 @@
 import { reactive, readonly } from 'vue'
-import type { Question, Target } from './types.ts'
+import type { Question, Target } from '../types.ts'
 
 const WRITE_TOKEN_KEY = 'review-workspace:write-token'
 

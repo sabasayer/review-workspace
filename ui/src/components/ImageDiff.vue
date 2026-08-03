@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { assetUrl } from '../api.ts'
+import { computePixelDiff, loadImage } from '../image-pixel-diff.ts'
 
 const props = defineProps<{
   assetPath: string
@@ -22,24 +23,8 @@ const diffStats = ref<{ width: number; height: number; changedPercent: number } 
 const diffError = ref<string | null>(null)
 const diffLoading = ref(false)
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`failed to load ${src}`))
-    img.src = src
-  })
-}
-
-// Plain <canvas>/ImageData pixel diff — no library. A fixed per-channel delta
-// threshold tolerates minor recompression noise without a real perceptual-diff
-// algorithm; good enough for "does this snapshot actually differ", not pixel-perfect QA.
-const CHANGED_THRESHOLD = 32
-
-async function computeDiff() {
+async function runPixelDiff() {
   if (!baseImageUrl.value) return
-  // The <canvas> only exists in the DOM for the changed-pixel branch of a v-if/v-else
-  // chain — switching into this mode doesn't mean Vue has patched it in yet.
   await nextTick()
   if (!diffCanvas.value) return
   diffLoading.value = true
@@ -47,55 +32,9 @@ async function computeDiff() {
   diffStats.value = null
   try {
     const [baseImg, headImg] = await Promise.all([loadImage(baseImageUrl.value), loadImage(headUrl.value)])
-    if (baseImg.naturalWidth !== headImg.naturalWidth || baseImg.naturalHeight !== headImg.naturalHeight) {
-      diffError.value = `Dimensions differ: base ${baseImg.naturalWidth}×${baseImg.naturalHeight} vs head ${headImg.naturalWidth}×${headImg.naturalHeight} — cannot pixel-diff.`
-      return
-    }
-    const width = baseImg.naturalWidth
-    const height = baseImg.naturalHeight
-
-    const baseCanvas = document.createElement('canvas')
-    baseCanvas.width = width
-    baseCanvas.height = height
-    const baseCtx = baseCanvas.getContext('2d')!
-    baseCtx.drawImage(baseImg, 0, 0)
-    const baseData = baseCtx.getImageData(0, 0, width, height)
-
-    const headCanvas = document.createElement('canvas')
-    headCanvas.width = width
-    headCanvas.height = height
-    const headCtx = headCanvas.getContext('2d')!
-    headCtx.drawImage(headImg, 0, 0)
-    const headData = headCtx.getImageData(0, 0, width, height)
-
-    const out = diffCanvas.value
-    out.width = width
-    out.height = height
-    const outCtx = out.getContext('2d')!
-    const outData = outCtx.createImageData(width, height)
-
-    let changed = 0
-    for (let i = 0; i < baseData.data.length; i += 4) {
-      const delta =
-        Math.abs(baseData.data[i] - headData.data[i]) +
-        Math.abs(baseData.data[i + 1] - headData.data[i + 1]) +
-        Math.abs(baseData.data[i + 2] - headData.data[i + 2])
-      if (delta > CHANGED_THRESHOLD) {
-        changed++
-        outData.data[i] = 255
-        outData.data[i + 1] = 0
-        outData.data[i + 2] = 0
-        outData.data[i + 3] = 255
-      } else {
-        const gray = (headData.data[i] + headData.data[i + 1] + headData.data[i + 2]) / 3
-        outData.data[i] = gray
-        outData.data[i + 1] = gray
-        outData.data[i + 2] = gray
-        outData.data[i + 3] = 90
-      }
-    }
-    outCtx.putImageData(outData, 0, 0)
-    diffStats.value = { width, height, changedPercent: (changed / (width * height)) * 100 }
+    const result = computePixelDiff(baseImg, headImg, diffCanvas.value)
+    if ('error' in result) diffError.value = result.error
+    else diffStats.value = result
   } catch (err) {
     diffError.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -104,10 +43,10 @@ async function computeDiff() {
 }
 
 watch(mode, (m) => {
-  if (m === 'changed-pixel') computeDiff()
+  if (m === 'changed-pixel') runPixelDiff()
 })
 onMounted(() => {
-  if (mode.value === 'changed-pixel') computeDiff()
+  if (mode.value === 'changed-pixel') runPixelDiff()
 })
 
 const MODE_LABELS: Record<Mode, string> = {
@@ -117,8 +56,6 @@ const MODE_LABELS: Record<Mode, string> = {
   'changed-pixel': 'Changed pixels',
 }
 
-// Native <dialog> rather than a custom overlay component — showModal() gives us
-// backdrop, ESC-to-close, and focus trapping for free.
 const lightboxSrc = ref<string | null>(null)
 const lightboxDialog = useTemplateRef<HTMLDialogElement>('lightboxDialog')
 

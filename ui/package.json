@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "typecheck": "vue-tsc -b --noEmit"
+    "typecheck": "vue-tsc -b --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "dompurify": "^3.4.12",
@@ -17,9 +18,11 @@
   "devDependencies": {
     "@nuxt/ui": "^4.0.0",
     "@vitejs/plugin-vue": "^5.2.0",
+    "happy-dom": "^20.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
+    "vitest": "^3.0.0",
     "vue-tsc": "^2.2.0"
   }
 }

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "abc1111",
+    "head": "def2222",
+    "repository": "example/widgets",
+    "title": "Add login rate limiting",
+    "number": 42,
+    "url": "https://gitlab.example.com/example/widgets/-/merge_requests/42",
+    "author": "Review Bot",
+    "sourceBranch": "feat/rate-limit",
+    "targetBranch": "main",
+    "description": "Adds a sliding-window limiter around the login handler."
+  },
+  "behavioralGroups": [
+    {
+      "id": "bg-1",
+      "title": "Rate-limit login attempts",
+      "description": "Adds a sliding-window limiter around the login handler.",
+      "order": 0,
+      "risk": "high",
+      "targets": [
+        { "type": "file", "path": "src/auth/login.ts" },
+        { "type": "file", "path": "src/config/rate-limit.ts" }
+      ]
+    }
+  ],
+  "annotations": [
+    {
+      "id": "an-1",
+      "target": {
+        "type": "line",
+        "path": "src/auth/login.ts",
+        "side": "head",
+        "line": 42,
+        "expectedText": "  if (attempts > MAX_ATTEMPTS) {"
+      },
+      "summary": "Rejects further attempts once the sliding window limit is hit. Reads the limit from config.",
+      "kind": "behavior",
+      "evidenceIds": ["ev-1"],
+      "relatedTargets": [
+        {
+          "target": {
+            "type": "line",
+            "path": "src/config/rate-limit.ts",
+            "side": "head",
+            "line": 1,
+            "expectedText": "export const MAX_ATTEMPTS = 5"
+          },
+          "reason": "Limit constant defined here"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "observed",
+      "description": "MAX_ATTEMPTS is read from config, defaulting to 5.",
+      "targetIds": ["an-1"]
+    }
+  ],
+  "verification": [
+    {
+      "id": "vi-1",
+      "description": "Confirm the limiter resets after the window elapses.",
+      "status": "unverified",
+      "targetIds": ["bg-1"]
+    }
+  ],
+  "answers": [
+    {
+      "id": "ans-1",
+      "questionId": "q-1",
+      "body": "The window is 60 seconds, configured via RATE_LIMIT_WINDOW_MS.",
+      "evidenceIds": ["ev-1"]
+    }
+  ]
+}

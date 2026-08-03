@@ -2,6 +2,23 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'engine',
+          include: ['src/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        root: './ui',
+        test: {
+          name: 'ui',
+          include: ['src/**/*.test.ts'],
+          environment: 'happy-dom',
+        },
+      },
+    ],
   },
 })

@@ -1,1 +1,10 @@
-test
+Synthetic PNG screenshots for the image-pair fixture.
+base.png — login widget before the rate-limit banner was added.
+head.png — same layout with a green submit button and a warning banner.
+
+Regenerate with ImageMagick if needed (requires `magick` on PATH):
+
+  magick -size 360x220 xc:'#e8edf2' ... base.png
+  magick -size 360x220 xc:'#e8edf2' ... head.png
+
+See git history for the full commands, or copy from fixtures/README.md.

@@ -1,6 +1,8 @@
 node_modules/
 dist/
 ui-dist/
+playwright-report/
+test-results/
 *.log
 
 # Real Review Bundles (per ADR 0004) — may contain another org's proprietary code,

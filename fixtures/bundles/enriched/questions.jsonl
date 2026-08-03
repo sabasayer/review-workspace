@@ -1,0 +1,1 @@
+{"type":"raised","id":"q-1","createdAt":"2026-01-01T00:00:00.000Z","body":"What is the rate limit window?","target":{"type":"line","path":"src/auth/login.ts","side":"head","line":42,"expectedText":"  if (attempts > MAX_ATTEMPTS) {"}}
