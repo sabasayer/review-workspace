@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { ref } from 'vue'
 import type { Annotation } from '../types.ts'
 import { anchorId } from '../diff-layout.ts'
 import { renderMarkdown } from '../markdown.ts'
@@ -9,14 +9,14 @@ import { currentFiles } from '../view-model-store.ts'
 
 const props = defineProps<{ annotation: Annotation; number: number }>()
 
-// A plain `<a href="#...">` fights the popover here: Reka UI returns focus to this
-// badge when the popover closes (for a11y), and focusing an element auto-scrolls it
-// into view — so the native anchor jump to the related file gets stomped a tick later
-// by a scroll back to this badge. Closing first and scrolling after nextTick (once
-// Vue's own focus-return DOM patch has flushed) makes our scroll the final, winning one.
-async function goToRelatedTarget(path: string, close: () => void) {
-  close()
-  await nextTick()
+// Deliberately doesn't close the popover before scrolling — Reka UI's FocusScope
+// restores focus to this badge on close (for a11y), and closing first meant fighting
+// its internal unmount timing (a setTimeout, not a microtask a simple nextTick() could
+// wait out) to stop that restore's own scroll from undoing ours. Simpler and robust:
+// leave it open. The popover tracks its trigger's position, so once we scroll away
+// from this badge it just scrolls out of view with it — closing it explicitly buys
+// nothing worth the race.
+function goToRelatedTarget(path: string) {
   document.getElementById(anchorId(path))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -39,7 +39,7 @@ function previewFor(i: number) {
     >
       {{ number }}
     </button>
-    <template #content="{ close }">
+    <template #content>
       <div class="w-80 max-h-96 overflow-y-auto p-3 text-left font-sans text-xs whitespace-normal break-words normal-case select-text">
         <span class="mb-1.5 flex items-center gap-2">
           <UBadge size="sm" variant="subtle" color="primary">{{ annotation.kind ?? 'note' }}</UBadge>
@@ -56,7 +56,7 @@ function previewFor(i: number) {
             <button
               type="button"
               class="font-mono text-primary hover:underline"
-              @click="goToRelatedTarget(related.target.path, close)"
+              @click="goToRelatedTarget(related.target.path)"
             >
               → {{ related.target.path }}
             </button>
