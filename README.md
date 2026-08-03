@@ -14,7 +14,10 @@ This repo (the engine: schema, validator, CLI, server, UI) never fetches a Compa
 mkdir -p ~/.claude/skills/review-workspace && cd ~/.claude/skills/review-workspace && curl -sO https://raw.githubusercontent.com/sabasayer/review-workspace/main/skills/review-workspace/SKILL.md && curl -sO https://raw.githubusercontent.com/sabasayer/review-workspace/main/skills/review-workspace/FRAMEWORK.md
 ```
 
-Also requires `glab` (GitLab) or `gh` (GitHub) CLI, installed and authenticated — that's what fetches the MR/PR diff.
+Also requires:
+
+- `glab` (GitLab) or `gh` (GitHub) CLI, installed and authenticated — that's what fetches the MR/PR diff.
+- **Node ≥24** — `npx` itself ships with Node/npm, nothing extra to install, but an older Node on your `PATH` will fail to run the CLI. Check with `node --version`; if it's below 24, upgrade (e.g. via [nvm](https://github.com/nvm-sh/nvm): `nvm install 24 && nvm use 24`) before running `npx review-workspace`.
 
 **Use it**: paste an MR/PR URL to Claude Code and ask it to review it, e.g. "Review this MR using the review-workspace skill: `<url>`". The skill scaffolds a bundle under `.bundles/`, generates + publishes the Review Document, then `serve`s it (see below) — no local clone of this repo needed, `npx` fetches the CLI/UI on demand.
 
