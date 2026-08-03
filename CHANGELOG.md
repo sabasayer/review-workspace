@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/sabasayer/review-workspace/compare/v1.0.2...v1.0.3) (2026-08-03)
+
+
+### Bug Fixes
+
+* stop leaving the related-target popover open from breaking the scroll-into-view ([46e5a39](https://github.com/sabasayer/review-workspace/commit/46e5a39cfe3eff856ba5579ca64e0212b08222d8))
+
 ## [1.0.2](https://github.com/sabasayer/review-workspace/compare/v1.0.1...v1.0.2) (2026-08-03)
 
 
