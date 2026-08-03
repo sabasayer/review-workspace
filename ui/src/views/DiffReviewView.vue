@@ -8,6 +8,7 @@ import { loadQuestions, setWriteToken, useQuestionsStore } from '../questions-st
 import { renderMarkdown } from '../markdown.ts'
 import { anchorId, lineAnchorId } from '../diff-layout.ts'
 import { expandHunk } from '../expanded-hunks-store.ts'
+import { currentFiles } from '../view-model-store.ts'
 
 const viewModel = ref<ViewModel | null>(null)
 const error = ref<string | null>(null)
@@ -25,6 +26,7 @@ function saveWriteToken(close: () => void) {
 async function refresh() {
   try {
     viewModel.value = await fetchView()
+    currentFiles.value = viewModel.value.files
     error.value = null
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -378,70 +380,4 @@ async function copyPrompt() {
     </div>
   </div>
 </template>
-
-<style scoped>
-.markdown-body :deep(h1),
-.markdown-body :deep(h2),
-.markdown-body :deep(h3) {
-  margin: 1em 0 0.4em;
-  font-weight: 600;
-}
-.markdown-body :deep(h1) {
-  font-size: 1.1rem;
-}
-.markdown-body :deep(h2) {
-  font-size: 1rem;
-}
-.markdown-body :deep(h3) {
-  font-size: 0.925rem;
-}
-.markdown-body :deep(p) {
-  margin: 0.5em 0;
-}
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  margin: 0.5em 0;
-  padding-left: 1.4em;
-}
-.markdown-body :deep(li) {
-  margin: 0.2em 0;
-}
-.markdown-body :deep(ul) {
-  list-style: disc;
-}
-.markdown-body :deep(ol) {
-  list-style: decimal;
-}
-.markdown-body :deep(a) {
-  color: var(--ui-primary);
-  text-decoration: underline;
-}
-.markdown-body :deep(code) {
-  border-radius: 0.25rem;
-  background: var(--ui-bg-elevated);
-  padding: 0.1em 0.35em;
-  font-size: 0.85em;
-}
-.markdown-body :deep(pre) {
-  overflow-x: auto;
-  border-radius: 0.375rem;
-  background: var(--ui-bg-elevated);
-  padding: 0.75em;
-}
-.markdown-body :deep(pre code) {
-  background: none;
-  padding: 0;
-}
-.markdown-body :deep(img) {
-  max-width: 100%;
-  border-radius: 0.375rem;
-  margin: 0.5em 0;
-}
-.markdown-body :deep(blockquote) {
-  border-left: 3px solid var(--ui-border);
-  margin: 0.5em 0;
-  padding-left: 0.75em;
-  color: var(--ui-text-muted);
-}
-</style>
 

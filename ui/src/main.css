@@ -83,3 +83,71 @@
   --syntax-property: #79d2d2;
   --syntax-operator: #aeb9c4;
 }
+
+/*
+ * Shared renderMarkdown() output styling — global (not scoped to one component) since
+ * both the MR-description slideover and annotation-note popovers render markdown.
+ */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  margin: 1em 0 0.4em;
+  font-weight: 600;
+}
+.markdown-body h1 {
+  font-size: 1.1rem;
+}
+.markdown-body h2 {
+  font-size: 1rem;
+}
+.markdown-body h3 {
+  font-size: 0.925rem;
+}
+.markdown-body p {
+  margin: 0.5em 0;
+}
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.5em 0;
+  padding-left: 1.4em;
+}
+.markdown-body li {
+  margin: 0.2em 0;
+}
+.markdown-body ul {
+  list-style: disc;
+}
+.markdown-body ol {
+  list-style: decimal;
+}
+.markdown-body a {
+  color: var(--ui-primary);
+  text-decoration: underline;
+}
+.markdown-body code {
+  border-radius: 0.25rem;
+  background: var(--ui-bg-elevated);
+  padding: 0.1em 0.35em;
+  font-size: 0.85em;
+}
+.markdown-body pre {
+  overflow-x: auto;
+  border-radius: 0.375rem;
+  background: var(--ui-bg-elevated);
+  padding: 0.75em;
+}
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 0.375rem;
+  margin: 0.5em 0;
+}
+.markdown-body blockquote {
+  border-left: 3px solid var(--ui-border);
+  margin: 0.5em 0;
+  padding-left: 0.75em;
+  color: var(--ui-text-muted);
+}
