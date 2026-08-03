@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/sabasayer/review-workspace/compare/v1.0.1...v1.0.2) (2026-08-03)
+
+
+### Bug Fixes
+
+* stop related-target link scroll from being undone by popover focus-return ([dee7820](https://github.com/sabasayer/review-workspace/commit/dee78209e4670f734b7494f52b673b94d60f6b28))
+
 ## [1.0.1](https://github.com/sabasayer/review-workspace/compare/v1.0.0...v1.0.1) (2026-08-03)
 
 
