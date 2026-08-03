@@ -11,8 +11,10 @@ This repo (the engine: schema, validator, CLI, server, UI) never fetches a Compa
 **Install the skill** (one-time, requires [Claude Code](https://claude.com/claude-code) — CLI, desktop app, or the claude.ai/code web app; a plain claude.ai chat can't run it, since it shells out to `glab`/`gh`/`npx`):
 
 ```sh
-mkdir -p ~/.claude/skills/review-workspace && cd ~/.claude/skills/review-workspace && curl -sO https://raw.githubusercontent.com/sabasayer/review-workspace/main/skills/review-workspace/SKILL.md && curl -sO https://raw.githubusercontent.com/sabasayer/review-workspace/main/skills/review-workspace/FRAMEWORK.md
+npx skills add sabasayer/review-workspace --global --agent claude-code -y
 ```
+
+(Uses [vercel-labs/skills](https://github.com/vercel-labs/skills). Later, `npx skills update review-workspace` picks up any changes to the skill.)
 
 Also requires:
 
