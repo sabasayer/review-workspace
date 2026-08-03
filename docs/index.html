@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Review Workspace — a decision surface for reviewing code</title>
+<meta name="description" content="A local, offline decision surface for reviewing a code Comparison — evidence-linked map of intent, behavior, risk, and observable effects." />
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --bg-elevated: #ffffff;
+    --bg-accented: #e8edf2;
+    --text: #17212b;
+    --text-muted: #526170;
+    --text-dimmed: #71808f;
+    --border: #d7dee6;
+    --primary: #087f5b;
+    --secondary: #245fbf;
+    --warning: #9a6200;
+    --radius: 0.75rem;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1014;
+      --bg-elevated: #121820;
+      --bg-accented: #202b37;
+      --text: #f4f7fa;
+      --text-muted: #aeb9c4;
+      --text-dimmed: #82909e;
+      --border: #2c3946;
+      --primary: #62d9b3;
+      --secondary: #8ab4ff;
+      --warning: #f0bd68;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.55;
+  }
+  a { color: var(--secondary); }
+  code, pre { font-family: var(--mono); }
+  code {
+    background: var(--bg-accented);
+    border-radius: 0.3em;
+    padding: 0.1em 0.4em;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1em 1.2em;
+    overflow-x: auto;
+    font-size: 0.85rem;
+  }
+  pre code { background: none; padding: 0; }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 1.5rem; }
+
+  header.site {
+    border-bottom: 1px solid var(--border);
+  }
+  header.site .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 600; }
+  .brand .glyph { color: var(--primary); font-size: 1.1rem; }
+  nav.site-links { display: flex; gap: 1.25rem; font-size: 0.9rem; }
+  nav.site-links a { color: var(--text-muted); text-decoration: none; }
+  nav.site-links a:hover { color: var(--text); }
+
+  .hero { padding: 4rem 0 3rem; text-align: center; }
+  .hero h1 { font-size: 2.1rem; margin: 0 0 0.75rem; letter-spacing: -0.01em; }
+  .hero p.tagline { font-size: 1.1rem; color: var(--text-muted); max-width: 620px; margin: 0 auto 2rem; }
+  .cta-row { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4em;
+    padding: 0.6em 1.1em; border-radius: 0.5em;
+    text-decoration: none; font-weight: 600; font-size: 0.92rem;
+    border: 1px solid var(--border);
+  }
+  .btn.primary { background: var(--primary); color: #ffffff; border-color: transparent; }
+  .btn.ghost { color: var(--text); background: var(--bg-elevated); }
+
+  section { padding: 2.5rem 0; }
+  section + section { border-top: 1px solid var(--border); }
+  h2 { font-size: 1.35rem; margin: 0 0 1rem; }
+  h2 .num { color: var(--text-dimmed); font-weight: 400; margin-right: 0.4em; }
+  p { color: var(--text); }
+  p.lede { color: var(--text-muted); }
+
+  .flow {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch;
+    margin: 1.5rem 0;
+  }
+  .flow .step {
+    flex: 1 1 140px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+    font-size: 0.85rem;
+  }
+  .flow .step strong { display: block; margin-bottom: 0.3em; font-size: 0.95rem; }
+  .flow .arrow {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-dimmed); font-size: 1.1rem; padding: 0 0.15rem;
+  }
+  @media (max-width: 640px) {
+    .flow { flex-direction: column; }
+    .flow .arrow { transform: rotate(90deg); padding: 0.1rem 0; }
+  }
+
+  .glossary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 0.9rem;
+  }
+  .glossary .term {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+  }
+  .glossary .term dt { font-weight: 600; font-size: 0.92rem; margin-bottom: 0.3em; }
+  .glossary .term dd { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+
+  .principles { padding-left: 1.2rem; }
+  .principles li { margin-bottom: 0.5rem; color: var(--text-muted); }
+  .principles li strong { color: var(--text); }
+
+  footer.site {
+    border-top: 1px solid var(--border);
+    padding: 2rem 0 3rem;
+    color: var(--text-dimmed);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  footer.site a { color: var(--text-dimmed); }
+
+  .copy-btn {
+    float: right;
+    font-family: var(--sans);
+    font-size: 0.75rem;
+    color: var(--text-dimmed);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0.35em;
+    padding: 0.2em 0.6em;
+    cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <div class="brand"><span class="glyph">◇</span> Review Workspace</div>
+    <nav class="site-links">
+      <a href="https://github.com/sabasayer/review-workspace">GitHub</a>
+      <a href="https://www.npmjs.com/package/review-workspace">npm</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <h1>A decision surface for reviewing code — not another AI summary</h1>
+    <p class="tagline">
+      Review Workspace turns a flat diff into an evidence-linked map of intent, behavior, risk,
+      and observable effects — so a reviewer reaches a decision faster, without losing the code
+      itself under a wall of generated prose.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="#quick-start">Get started</a>
+      <a class="btn ghost" href="https://github.com/sabasayer/review-workspace">View source</a>
+    </div>
+  </div>
+</div>
+
+<section id="what">
+  <div class="wrap">
+    <h2><span class="num">01</span>What it is</h2>
+    <p class="lede">
+      A local, offline tool for reviewing one Comparison — an MR, a PR, or any base/head pair.
+      A separate <strong>Generator</strong> (a Claude Code skill) reads the diff plus whatever
+      evidence exists (CI results, screenshots, the MR description) and writes a structured
+      <strong>Review Document</strong>: files clustered into behavioral groups, annotations
+      pinned to exact lines, evidence classified as observed fact vs. author claim vs. inference,
+      and open questions. You review it in a local web UI — side-by-side or inline diff, full-screen
+      image compare for screenshot diffs, and threaded questions on any line.
+    </p>
+    <p class="lede">
+      The Generator never decides approve/request-changes. That stays yours.
+    </p>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2><span class="num">02</span>How it flows</h2>
+    <div class="flow">
+      <div class="step"><strong>MR / PR</strong>The Comparison under review, plus its description, discussions, and CI results.</div>
+      <div class="arrow">→</div>
+      <div class="step"><strong>Generator</strong>Claude Code skill reads the patch + evidence, writes a Review Document.</div>
+      <div class="arrow">→</div>
+      <div class="step"><strong>Bundle</strong>The portable package: the diff, the Review Document, image assets, questions.</div>
+      <div class="arrow">→</div>
+      <div class="step"><strong>Local UI</strong>Served on loopback — you read, ask questions, and decide.</div>
+    </div>
+  </div>
+</section>
+
+<section id="concepts">
+  <div class="wrap">
+    <h2><span class="num">03</span>Core concepts</h2>
+    <dl class="glossary">
+      <div class="term"><dt>Review Bundle</dt><dd>The complete portable resource for reviewing one Comparison — code evidence, interpretation, assets, questions, and reviewer state.</dd></div>
+      <div class="term"><dt>Comparison</dt><dd>The exact base and head revisions whose differences are under review.</dd></div>
+      <div class="term"><dt>Review Document</dt><dd>The semantic interpretation of a Comparison, produced and updated by a Generator.</dd></div>
+      <div class="term"><dt>Generator</dt><dd>Anything capable of producing or updating a valid Review Document — here, a Claude Code skill.</dd></div>
+      <div class="term"><dt>Behavioral Group</dt><dd>An ordered cluster of related changes that together implement or verify one behavior.</dd></div>
+      <div class="term"><dt>Annotation</dt><dd>A concise interpretation attached to a specific file, hunk, line, or binary Target, backed by evidence.</dd></div>
+      <div class="term"><dt>Evidence</dt><dd>An attributable observation — classified as observed fact, author claim, or inference. Never presented as more certain than it is.</dd></div>
+      <div class="term"><dt>Question / Answer</dt><dd>A Reviewer's request for clarification on any Target, and the Generator's one-per-Question response.</dd></div>
+      <div class="term"><dt>Diagnostic</dt><dd>A visible problem found validating a bundle — a stale line reference, a missing asset — surfaced, never silently dropped.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section id="principles">
+  <div class="wrap">
+    <h2><span class="num">04</span>What it won't do</h2>
+    <ul class="principles">
+      <li><strong>Never decides for you.</strong> No approve/request-changes button driven by the Generator — that stays a human call.</li>
+      <li><strong>Never hides the diff.</strong> Every changed file is reachable through the Review Document; summaries orient, they don't replace the code.</li>
+      <li><strong>Never blurs fact and guess.</strong> Every piece of evidence is labeled observed, author-claimed, or inferred.</li>
+      <li><strong>Never phones home.</strong> Runs entirely on loopback, against your own bundle directory — nothing leaves your machine.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="quick-start">
+  <div class="wrap">
+    <h2><span class="num">05</span>Quick start</h2>
+    <p class="lede">Requires <a href="https://claude.com/claude-code">Claude Code</a> (CLI, desktop app, or claude.ai/code) and Node ≥24. A plain claude.ai chat can't run this — the skill shells out to <code>glab</code>/<code>gh</code>/<code>npx</code>.</p>
+
+    <p><strong>1. Install the skill</strong> (one time):</p>
+    <pre><button class="copy-btn" data-copy="npx skills add sabasayer/review-workspace --global --agent claude-code -y">Copy</button><code>npx skills add sabasayer/review-workspace --global --agent claude-code -y</code></pre>
+
+    <p><strong>2. Ask Claude Code to review something:</strong></p>
+    <pre><code>Review this MR using the review-workspace skill: &lt;paste MR/PR URL&gt;</code></pre>
+    <p class="lede">It scaffolds a bundle, generates the Review Document, and serves the UI at a printed <code>localhost</code> URL.</p>
+
+    <p><strong>Already have a bundle?</strong> Serve it directly:</p>
+    <pre><button class="copy-btn" data-copy="npx review-workspace serve .bundles/<name> --port 4317">Copy</button><code>npx review-workspace serve .bundles/&lt;name&gt; --port 4317</code></pre>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    MIT licensed · <a href="https://github.com/sabasayer/review-workspace">github.com/sabasayer/review-workspace</a>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(btn.dataset.copy)
+      const original = btn.textContent
+      btn.textContent = 'Copied!'
+      setTimeout(() => { btn.textContent = original }, 1500)
+    })
+  })
+</script>
+
+</body>
+</html>
