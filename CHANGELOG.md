@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/sabasayer/review-workspace/compare/v1.0.0...v1.0.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* remove colon-space from SKILL.md frontmatter description ([fa35da0](https://github.com/sabasayer/review-workspace/commit/fa35da0368dc0e46ed4a6794bbe4e4cf1cc90553))
+
 # 1.0.0 (2026-07-31)
 
 
