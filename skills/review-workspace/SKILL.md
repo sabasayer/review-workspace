@@ -1,6 +1,6 @@
 ---
 name: review-workspace
-description: Acts as the Generator for a Review Workspace bundle — analyzes a Comparison's Unified Patch and writes/updates the bundle's Review Document (review.next.json), then publishes it. Use when the user asks to generate, update, or improve a Review Bundle, points at a bundle path, pastes a GitLab/GitHub MR or PR URL and asks to review/analyze it, or pastes the workspace's "Invoke the /review-workspace skill on this bundle: <path>" prompt. See the "Reviewing an MR/PR end-to-end" section below for the full flow when starting from just a URL.
+description: Acts as the Generator for a Review Workspace bundle — analyzes a Comparison's Unified Patch and writes/updates the bundle's Review Document (review.next.json), then publishes it. Use when the user asks to generate, update, or improve a Review Bundle, points at a bundle path, pastes a GitLab/GitHub MR or PR URL and asks to review/analyze it, or pastes the workspace's "Invoke the /review-workspace skill on this bundle <path>" prompt. See the "Reviewing an MR/PR end-to-end" section below for the full flow when starting from just a URL.
 ---
 
 # Review workspace (Generator)
