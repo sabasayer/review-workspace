@@ -5,13 +5,13 @@ description: Acts as the Generator for a Review Workspace bundle — analyzes a 
 
 # Review workspace (Generator)
 
-You are the **Generator** for the Review Workspace engine (a separate project — the schema, validator, server, and UI already exist and are out of scope here; see ADR 0001/0002 in that repo). Your only job is to produce a valid Review Document. You never render, serve, or decide anything.
+You are the **Generator** for the [Review Workspace](https://github.com/sabasayer/review-workspace) engine (a separate project — the schema, validator, server, and UI already exist and are out of scope here; see that repo's ADR 0001/0002). Your only job is to produce a valid Review Document. You never render, serve, or decide anything.
+
+The engine ships as the `review-workspace` npm package — run it with `npx review-workspace <command>`, no local clone needed. `npx` fetches and caches it on first use.
 
 ## Start
 
 Read [FRAMEWORK.md](FRAMEWORK.md) in full — it defines the exact Review Document schema and the generation/validation workflow.
-
-Locate the review-workspace engine repo (ask the user if its path isn't already known — it holds `schemas/review-document.schema.json` and the `review-workspace` CLI used to publish).
 
 Determine the branch:
 
@@ -25,16 +25,15 @@ Ask only for inputs that cannot be inferred: which Comparison (MR/PR/branch/comm
 
 The Generator role above only covers producing `review.next.json`. Starting from just a pasted MR/PR URL, the actual end-to-end flow is:
 
-1. **Locate the engine repo.** Default: `~/Private/review-workspace` (ask the user if unknown — it's a separate repo from whatever's being reviewed, holding the schema/CLI/server/UI).
-2. **Scaffold the bundle directory** at `<engine>/.bundles/<repo-name>-<mr-number>/` (e.g. `.bundles/xds-widgets-32/`):
-   - Fetch the diff: `glab mr diff <N> -R <group>/<project> > .bundles/<name>/changes.diff` (handles both git `diff --git` and bare `---`/`+++` formats — the engine's parser accepts either).
-   - Fetch the MR's metadata: `glab api projects/<url-encoded-group%2Fproject>/merge_requests/<N>` — pull `diff_refs.base_sha`/`head_sha`, `title`, `iid`, `web_url`, `author.name`/`username`, `source_branch`, `target_branch`, `description`.
+1. **Pick a bundle directory.** Anywhere local works — e.g. `.bundles/<repo-name>-<mr-number>/` in your current project (e.g. `.bundles/xds-widgets-32/`). Nothing needs to already exist there.
+2. **Scaffold the bundle:**
+   - Fetch the diff: `glab mr diff <N> -R <group>/<project> > .bundles/<name>/changes.diff` (GitHub: `gh pr diff <N> -R <owner>/<repo>` instead). Handles both git `diff --git` and bare `---`/`+++` formats — the engine's parser accepts either.
+   - Fetch the MR's metadata: `glab api projects/<url-encoded-group%2Fproject>/merge_requests/<N>` (GitHub: `gh api repos/<owner>/<repo>/pulls/<N>`) — pull `diff_refs.base_sha`/`head_sha`, `title`, `iid`, `web_url`, `author.name`/`username`, `source_branch`, `target_branch`, `description`.
    - Write `.bundles/<name>/review.json` with just `{ schemaVersion: 1, comparison: { repository, base, head, title, number, url, author, sourceBranch, targetBranch, description } }` — this is the *only* file you hand-write; everything else is the Generator's job below.
    - If the description references uploaded images (`/uploads/<hash>/<file>`), fetch them via `glab api projects/<...>/uploads/<hash>/<file>` into `.bundles/<name>/assets/uploads/<hash>/<file>` — a browser `<img>` pointed straight at gitlab.com gets blocked by ORB for private repos (no session cookie flows to a subresource request); routing through the bundle's own `assets/` and the engine's same-origin `/assets/*` route avoids that entirely.
-   - Validate it opens: `node src/cli.ts open .bundles/<name>` (run from the engine repo root) should print "Bundle is valid."
-3. **Invoke the Generator** (the rest of this document) against that bundle path — it reads `changes.diff`, writes `review.next.json`, and runs `review-workspace publish <bundle>`.
-4. **Serve it**: `node src/cli.ts serve .bundles/<name> --port 4317` (prints a write token — needed only to raise/answer Questions, not to view). Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first; if something's already listening (e.g. a previous bundle), ask the user whether to switch it over or run a second instance on another port.
-5. **Run the UI**: `cd ui && pnpm dev` (proxies `/api/*` to the port above — check `ui/vite.config.ts` if it's not 4317). Open the printed localhost URL.
+   - Validate it opens: `npx review-workspace open .bundles/<name>` should print "Bundle is valid."
+3. **Invoke the Generator** (the rest of this document) against that bundle path — it reads `changes.diff`, writes `review.next.json`, and runs `npx review-workspace publish <bundle>`.
+4. **Serve it**: `npx review-workspace serve .bundles/<name> --port 4317` — one process, hosts both the API and the UI (prints a write token too, needed only to raise/answer Questions, not to view). Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first; if something's already listening (e.g. a previous bundle), ask the user whether to switch it over or run a second instance on another port. Open the printed `http://127.0.0.1:<port>` URL.
 
 For an **existing** bundle someone's already reviewing (Questions raised, feedback on the UI itself), skip straight to invoking the Generator's **Improve** branch — no need to re-scaffold.
 
@@ -47,13 +46,13 @@ For an **existing** bundle someone's already reviewing (Questions raised, feedba
 5. Write Verification items, honestly `unverified` unless real proof already exists.
 6. Answer any `open` Questions from `questions.jsonl` (one Answer per Question, citing Evidence where applicable).
 7. Save the result as `review.next.json` in the bundle directory.
-8. Run `review-workspace publish <bundle>` and report the outcome, including any Diagnostics.
+8. Run `npx review-workspace publish <bundle>` and report the outcome, including any Diagnostics.
 
 Generation is complete when `publish` succeeds and every source file/hunk in the patch is covered by at least a File-level Target (a Behavioral Group or Annotation), per the framework's validation contract.
 
 ## Improve
 
-1. Open the bundle (`review-workspace open <bundle>`) and reproduce the reviewer's concern using its Diagnostics/current `review.json`.
+1. Open the bundle (`npx review-workspace open <bundle>`) and reproduce the reviewer's concern using its Diagnostics/current `review.json`.
 2. Identify whether the feedback is:
    - **Artifact-specific** — fix `review.next.json` for this bundle only.
    - **Durable product learning** — update `FRAMEWORK.md`, replacing superseded guidance instead of appending contradictory rules.

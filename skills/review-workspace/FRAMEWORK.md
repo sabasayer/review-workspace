@@ -2,7 +2,7 @@
 
 Generation and validation decisions for producing a Review Bundle's Review Document. Updated 2026-07-28.
 
-This framework covers the **Generator's** job only. The bundle contract, schema, validator, CLI, server, and UI are owned by the review-workspace engine repo (see its `docs/framework.md` and ADRs) — this document does not restate or override those; it tells the Generator how to produce content that fits them.
+This framework covers the **Generator's** job only. The bundle contract, schema, validator, CLI, server, and UI are owned by the [review-workspace engine repo](https://github.com/sabasayer/review-workspace) (see its `docs/framework.md` and ADRs) — this document does not restate or override those; it tells the Generator how to produce content that fits them.
 
 ## Product thesis
 
@@ -21,7 +21,7 @@ The workspace is a decision surface, not an AI report. Code remains primary; gen
 
 ## The Review Document you produce
 
-Written to `review.next.json` in the bundle directory, validated against `schemas/review-document.schema.json` in the engine repo. Shape (fields you actually set — see that schema file for the authoritative, exact definition):
+Written to `review.next.json` in the bundle directory, validated against [`schemas/review-document.schema.json`](https://github.com/sabasayer/review-workspace/blob/main/schemas/review-document.schema.json) in the engine repo (also what `npx review-workspace open`/`publish` validate against under the hood — no need to fetch it yourself). Shape (fields you actually set — see that schema file for the authoritative, exact definition):
 
 ```
 {
