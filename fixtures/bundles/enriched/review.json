@@ -75,5 +75,10 @@
       "body": "The window is 60 seconds, configured via RATE_LIMIT_WINDOW_MS.",
       "evidenceIds": ["ev-1"]
     }
-  ]
+  ],
+  "summary": {
+    "text": "Adds a sliding-window rate limiter to the login handler so repeated failed attempts get rejected.",
+    "highlightAnnotationIds": ["an-1"],
+    "highlightPaths": ["src/auth/login.ts"]
+  }
 }

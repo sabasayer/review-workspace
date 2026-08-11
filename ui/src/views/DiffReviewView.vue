@@ -5,6 +5,7 @@ import FileNav from '../components/FileNav.vue'
 import MrDetailsSlideover from '../components/MrDetailsSlideover.vue'
 import QuestionsSlideover from '../components/QuestionsSlideover.vue'
 import ReviewHeader from '../components/ReviewHeader.vue'
+import SummaryPanel from '../components/SummaryPanel.vue'
 import { useCopyFeedback } from '../composables/useCopyFeedback.ts'
 import { useReviewView } from '../composables/useReviewView.ts'
 import { buildAnnotationNumbers } from '../annotation-numbers.ts'
@@ -105,6 +106,7 @@ async function onQuestionSelect(entry: (typeof questionEntries.value)[number]) {
         <div v-if="viewModel.diagnostics.length" class="mb-4 rounded border border-warning/50 bg-warning/10 p-3 text-xs">
           <strong>{{ viewModel.diagnostics.length }} bundle-level diagnostic(s)</strong>
         </div>
+        <SummaryPanel v-if="viewModel.summary" :summary="viewModel.summary" />
         <section v-for="(bucket, i) in groupedFiles" :key="bucket.group?.id ?? `ungrouped-${i}`" class="mb-8">
           <h2 v-if="bucket.group" class="mb-2 text-base font-semibold">{{ bucket.group.title }}</h2>
           <h2 v-else class="mb-2 text-base font-semibold text-muted">Other changes</h2>

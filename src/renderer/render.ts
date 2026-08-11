@@ -9,6 +9,7 @@ import type {
   RenderedImageEvidence,
   RenderedLine,
   RenderedPipelineEvidence,
+  RenderedSummary,
   SideBySideRow,
   ViewModel,
 } from './types.ts'
@@ -201,5 +202,19 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
     diagnostics: bundleLevelDiagnostics,
     generatorPrompt: buildGeneratorPrompt(bundlePath),
     answers: document.answers ?? [],
+    summary: renderSummary(document, attachedPaths),
+  }
+}
+
+/** Dangling ids/paths are dropped rather than diagnosed — same treatment as evidence/verification targetIds. */
+function renderSummary(document: ReviewDocument, attachedPaths: Set<string>): RenderedSummary | undefined {
+  if (!document.summary) return undefined
+  const annotationsById = new Map((document.annotations ?? []).map((a) => [a.id, a]))
+  return {
+    text: document.summary.text,
+    highlightAnnotations: (document.summary.highlightAnnotationIds ?? [])
+      .map((id) => annotationsById.get(id))
+      .filter((a): a is NonNullable<typeof a> => a !== undefined),
+    highlightPaths: (document.summary.highlightPaths ?? []).filter((path) => attachedPaths.has(path)),
   }
 }

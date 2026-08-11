@@ -44,9 +44,12 @@ Written to `review.next.json` in the bundle directory, validated against [`schem
   ],
   answers: [
     { id, questionId, body, evidenceIds?: [string] }   // questionId must match an id from questions.jsonl
-  ]
+  ],
+  summary?: { text, highlightAnnotationIds?: [string], highlightPaths?: [string] }
 }
 ```
+
+`summary` is a brief, top-of-page orientation so a reviewer can scan intent before diving into the full diff — one or two sentences in `text`, plus `highlightAnnotationIds`/`highlightPaths` pointing at the Annotations and files most worth reading first (usually the ones in the highest-risk/first-ordered Behavioral Group). It must not introduce any claim that isn't already backed by an Annotation or Target elsewhere in the document — a dangling id or path is simply dropped by the engine, not diagnosed, so double-check the ids you reference actually exist before publishing.
 
 **Target** (used by `behavioralGroups[].targets`, `annotations[].target`) is one of:
 
@@ -122,7 +125,11 @@ For each Annotation or Behavioral Group that needs support, add Evidence with th
 
 For each `open` entry in `questions.jsonl`, write exactly one Answer referencing its `questionId`, citing Evidence where applicable. Never leave an open Question unanswered if you have the information to answer it — leave it open only when you genuinely don't.
 
-### 6. Publish
+### 6. Write the Summary
+
+Once the map, Annotations, and Evidence exist, write `summary.text` as a one- or two-sentence statement of what this change does — pull from the highest-order Behavioral Group's `description` rather than re-deriving it. Set `highlightAnnotationIds`/`highlightPaths` to the handful of Annotations/files a reviewer should read first (usually the highest-risk group's). Skip it entirely for a trivial or single-file change where a Summary wouldn't tell a reviewer anything the diff itself doesn't already.
+
+### 7. Publish
 
 Write the document to `review.next.json`, then run `review-workspace publish <bundle>` (the engine's CLI). Report the result:
 

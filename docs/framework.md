@@ -71,8 +71,11 @@ The Review Document describes concepts, never components or layout. Its core col
 - Evidence
 - Verification items and gaps
 - Answers
+- Summary (optional)
 
 The document requires an integer `schemaVersion` and exact Comparison identity. A minimally enriched document is valid; missing optional interpretation falls back to the complete patch in patch order.
+
+An optional Summary is a short, top-of-page orientation: brief text plus pointers (`highlightAnnotationIds`, `highlightPaths`) at the Annotations and files most worth reading first. It only points at Targets and Annotations that already exist elsewhere in the document — it never introduces new claims of its own. A dangling id or path is dropped silently, the same treatment as any other cross-reference in the document.
 
 ## Targets
 

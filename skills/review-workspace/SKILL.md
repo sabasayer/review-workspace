@@ -45,8 +45,9 @@ For an **existing** bundle someone's already reviewing (Questions raised, feedba
 4. Write Evidence, classified `observed` / `author-claim` / `inference`.
 5. Write Verification items, honestly `unverified` unless real proof already exists.
 6. Answer any `open` Questions from `questions.jsonl` (one Answer per Question, citing Evidence where applicable).
-7. Save the result as `review.next.json` in the bundle directory.
-8. Run `npx review-workspace publish <bundle>` and report the outcome, including any Diagnostics.
+7. Write a brief `summary` (a sentence or two, plus the most important Annotation/file pointers) so a reviewer can scan intent before the full diff — skip it for a trivial change.
+8. Save the result as `review.next.json` in the bundle directory.
+9. Run `npx review-workspace publish <bundle>` and report the outcome, including any Diagnostics.
 
 Generation is complete when `publish` succeeds and every source file/hunk in the patch is covered by at least a File-level Target (a Behavioral Group or Annotation), per the framework's validation contract.
 

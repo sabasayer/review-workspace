@@ -43,6 +43,18 @@ describe('validateReviewDocumentSchema', () => {
     expect(result.errors?.length).toBeGreaterThan(0)
   })
 
+  it('accepts a summary with highlight annotation ids and paths', () => {
+    const doc = loadFixture('minimal-valid')
+    doc.summary = { text: 'Adds rate limiting.', highlightAnnotationIds: ['an-1'], highlightPaths: ['src/a.ts'] }
+    expect(validateReviewDocumentSchema(doc).valid).toBe(true)
+  })
+
+  it('rejects a summary missing text', () => {
+    const doc = loadFixture('minimal-valid')
+    doc.summary = { highlightAnnotationIds: ['an-1'] }
+    expect(validateReviewDocumentSchema(doc).valid).toBe(false)
+  })
+
   it('rejects a line Target missing expectedText', () => {
     const doc = loadFixture('minimal-valid')
     doc.annotations = [

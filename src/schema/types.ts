@@ -75,6 +75,14 @@ export interface Answer {
   evidenceIds?: string[]
 }
 
+export interface Summary {
+  text: string
+  /** Ids of the Annotations most worth a reviewer reading first. */
+  highlightAnnotationIds?: string[]
+  /** Paths of the files most worth a reviewer reading first. */
+  highlightPaths?: string[]
+}
+
 export interface ReviewDocument {
   schemaVersion: number
   comparison: Comparison
@@ -83,4 +91,5 @@ export interface ReviewDocument {
   evidence?: Evidence[]
   verification?: VerificationItem[]
   answers?: Answer[]
+  summary?: Summary
 }
