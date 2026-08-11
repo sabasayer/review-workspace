@@ -231,6 +231,38 @@ describe('render', () => {
   it('resolves a relative bundle path to an absolute one in the prompt', () => {
     expect(buildGeneratorPrompt('.')).toContain(process.cwd())
   })
+
+  it('resolves summary highlightAnnotationIds and highlightPaths onto the view model', () => {
+    const document: ReviewDocument = {
+      schemaVersion: 1,
+      comparison: { base: 'a', head: 'b' },
+      annotations: [{ id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'the important bit' }],
+      summary: { text: 'Adds rate limiting.', highlightAnnotationIds: ['an-1'], highlightPaths: ['src/a.ts'] },
+    }
+    const patch: ParsedPatch = { files: [{ path: 'src/a.ts', binary: false, hunks: [] }] }
+    const vm = render(document, patch, [], '/tmp/fake-bundle')
+    expect(vm.summary?.text).toBe('Adds rate limiting.')
+    expect(vm.summary?.highlightAnnotations).toEqual([{ id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'the important bit' }])
+    expect(vm.summary?.highlightPaths).toEqual(['src/a.ts'])
+  })
+
+  it('drops dangling highlightAnnotationIds and highlightPaths that reference nothing in the document/patch', () => {
+    const document: ReviewDocument = {
+      schemaVersion: 1,
+      comparison: { base: 'a', head: 'b' },
+      summary: { text: 'x', highlightAnnotationIds: ['does-not-exist'], highlightPaths: ['does/not/exist.ts'] },
+    }
+    const patch: ParsedPatch = { files: [] }
+    const vm = render(document, patch, [], '/tmp/fake-bundle')
+    expect(vm.summary?.highlightAnnotations).toEqual([])
+    expect(vm.summary?.highlightPaths).toEqual([])
+  })
+
+  it('leaves the view model summary undefined when the document has none', () => {
+    const document: ReviewDocument = { schemaVersion: 1, comparison: { base: 'a', head: 'b' } }
+    const vm = render(document, { files: [] }, [], '/tmp/fake-bundle')
+    expect(vm.summary).toBeUndefined()
+  })
 })
 
 describe('no Generator is ever launched by this codebase', () => {

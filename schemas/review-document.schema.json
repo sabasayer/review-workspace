@@ -43,9 +43,20 @@
     "answers": {
       "type": "array",
       "items": { "$ref": "#/$defs/answer" }
-    }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
   },
   "$defs": {
+    "summary": {
+      "type": "object",
+      "required": ["text"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "highlightAnnotationIds": { "type": "array", "items": { "type": "string" } },
+        "highlightPaths": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "target": {
       "type": "object",
       "required": ["type", "path"],

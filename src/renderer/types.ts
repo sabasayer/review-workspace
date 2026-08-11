@@ -64,6 +64,12 @@ export interface SideBySideRow {
   right: RenderedLine | null
 }
 
+export interface RenderedSummary {
+  text: string
+  highlightAnnotations: Annotation[]
+  highlightPaths: string[]
+}
+
 export interface ViewModel {
   comparison: Comparison
   groups: RenderedGroup[]
@@ -71,4 +77,5 @@ export interface ViewModel {
   diagnostics: Diagnostic[]
   generatorPrompt: string
   answers: Answer[]
+  summary?: RenderedSummary
 }
