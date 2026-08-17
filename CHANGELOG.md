@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/sabasayer/review-workspace/compare/v1.2.0...v1.3.0) (2026-08-17)
+
+
+### Features
+
+* scaffold chained round bundles when an MR head moves ([#8](https://github.com/sabasayer/review-workspace/issues/8)) ([b801814](https://github.com/sabasayer/review-workspace/commit/b8018144e3d55678eb2f86805725b865b07857a1))
+
 # [1.2.0](https://github.com/sabasayer/review-workspace/compare/v1.1.0...v1.2.0) (2026-08-17)
 
 
