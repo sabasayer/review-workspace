@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "aaa1111",
+    "head": "bbb2222",
+    "repository": "example/widgets",
+    "number": 42,
+    "title": "Add login rate limiting",
+    "url": "https://gitlab.example.com/example/widgets/-/merge_requests/42",
+    "author": "Review Bot",
+    "sourceBranch": "feat/rate-limit",
+    "targetBranch": "main",
+    "description": "Adds a sliding-window limiter around the login handler."
+  }
+}

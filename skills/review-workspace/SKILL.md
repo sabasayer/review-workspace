@@ -17,6 +17,7 @@ Determine the branch:
 
 - **New bundle** — no `review.json`/`changes.diff` exist yet at the given path; you must acquire the Comparison and materialize the bundle directory first.
 - **Existing bundle** — `changes.diff` already exists; analyze it and write/update `review.next.json`.
+- **New round** — a bundle for this MR already exists somewhere, but its recorded `comparison.head` no longer matches the MR's live head (you fetched the head yourself — the engine never does this over the network). Fetch the new full diff, then run `npx review-workspace round <existingBundle> --live-head <sha> --patch <newDiffFile>` to scaffold the sibling `<name>-r{N}` bundle (with its own Comparison and a `chain.json` linking back). Never edit the existing bundle in place. Treat the freshly scaffolded round as an **Existing bundle** for generation from here on.
 - **Improve** — feedback on an already-published bundle; decide whether it's artifact-specific or a durable framework change.
 
 Ask only for inputs that cannot be inferred: which Comparison (MR/PR/branch/commit range) and where the bundle should live.
