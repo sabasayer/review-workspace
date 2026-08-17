@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { raiseQuestion, readQuestions, withdrawAndReplaceQuestion } from './questions-log.ts'
+import { raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion } from './questions-log.ts'
 
 let dir: string
 
@@ -63,5 +63,50 @@ describe('questions log', () => {
     const [comment] = readQuestions(dir)
     expect(comment.kind).toBe('question')
     expect(comment.status).toBe('open')
+  })
+
+  it('raises a Comment tagged kind: change-request on any Target type', () => {
+    const fileTarget = { type: 'file' as const, path: 'src/auth/login.ts' }
+    const c = raiseQuestion(dir, 'Please add a test for the retry path', fileTarget, 'change-request')
+    expect(c.kind).toBe('change-request')
+    expect(c.target).toEqual(fileTarget)
+    expect(c.resolved).toBe(false)
+  })
+
+  it('raises an unresolved Comment by default', () => {
+    const q = raiseQuestion(dir, 'first')
+    expect(q.resolved).toBe(false)
+    expect(q.resolvedAt).toBeUndefined()
+  })
+
+  it('resolves a change-request Comment, setting resolved and resolvedAt', () => {
+    const c = raiseQuestion(dir, 'Please add a test', undefined, 'change-request')
+    const resolved = resolveComment(dir, c.id)
+    expect(resolved?.resolved).toBe(true)
+    expect(resolved?.resolvedAt).toBeTruthy()
+
+    const [reread] = readQuestions(dir)
+    expect(reread.resolved).toBe(true)
+    expect(reread.resolvedAt).toBe(resolved?.resolvedAt)
+  })
+
+  it('does not resolve a question Comment even if a resolved entry targets it', () => {
+    const q = raiseQuestion(dir, 'Why 5?')
+    const result = resolveComment(dir, q.id)
+    expect(result?.resolved).toBe(false)
+    expect(result?.kind).toBe('question')
+  })
+
+  it('resolving a Comment that does not exist is a no-op, returning undefined without throwing', () => {
+    expect(() => resolveComment(dir, 'does-not-exist')).not.toThrow()
+    expect(resolveComment(dir, 'does-not-exist')).toBeUndefined()
+  })
+
+  it('never mutates existing log bytes when resolving — only appends', () => {
+    const c = raiseQuestion(dir, 'Please fix', undefined, 'change-request')
+    const before = readFileSync(join(dir, 'questions.jsonl'), 'utf-8')
+    resolveComment(dir, c.id)
+    const after = readFileSync(join(dir, 'questions.jsonl'), 'utf-8')
+    expect(after.startsWith(before)).toBe(true)
   })
 })

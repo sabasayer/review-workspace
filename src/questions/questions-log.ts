@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { Target } from '../schema/types.ts'
-import type { Comment, CommentLogEntry } from './types.ts'
+import type { Comment, CommentKind, CommentLogEntry } from './types.ts'
 
 // File name predates the Comment/kind split (it only ever held Questions) — kept
 // as-is so bundles created before this change keep reading correctly; only the
@@ -25,18 +25,26 @@ function appendEntry(bundlePath: string, entry: CommentLogEntry): void {
   appendFileSync(logPath(bundlePath), JSON.stringify(entry) + '\n')
 }
 
-/** Raises a new, immutable question Comment. Never mutates or removes any existing log entry. */
-export function raiseQuestion(bundlePath: string, body: string, target?: Target): Comment {
+/** Raises a new, immutable Comment. Never mutates or removes any existing log entry. */
+export function raiseQuestion(bundlePath: string, body: string, target?: Target, kind: CommentKind = 'question'): Comment {
   const entry: CommentLogEntry = {
     type: 'raised',
     id: randomUUID(),
     createdAt: new Date().toISOString(),
     body,
     target,
-    kind: 'question',
+    kind,
   }
   appendEntry(bundlePath, entry)
-  return { id: entry.id, createdAt: entry.createdAt, body: entry.body, target: entry.target, kind: 'question', status: 'open' }
+  return {
+    id: entry.id,
+    createdAt: entry.createdAt,
+    body: entry.body,
+    target: entry.target,
+    kind,
+    status: 'open',
+    resolved: false,
+  }
 }
 
 /**
@@ -75,8 +83,28 @@ export function withdrawAndReplaceQuestion(
       target: replacement.target,
       kind: 'question',
       status: 'open',
+      resolved: false,
     },
   }
+}
+
+/**
+ * Marks a change-request Comment resolved. This is a human-only, reviewer-triggered
+ * action recorded in the same append-only log — nothing a Generator writes (the
+ * Review Document, `review.next.json`) can ever produce this entry. Resolving a
+ * question Comment, or a Comment that doesn't exist, is a no-op: the entry is still
+ * appended (the log stays append-only and honest about every action taken), but
+ * `readQuestions`'s reduction only applies it to an existing change-request Comment.
+ */
+export function resolveComment(bundlePath: string, commentId: string): Comment | undefined {
+  const entry: CommentLogEntry = {
+    type: 'resolved',
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    commentId,
+  }
+  appendEntry(bundlePath, entry)
+  return readQuestions(bundlePath).find((comment) => comment.id === commentId)
 }
 
 /** Reduces the append-only log into the current set of Comments. */
@@ -91,12 +119,19 @@ export function readQuestions(bundlePath: string): Comment[] {
         target: entry.target,
         kind: entry.kind ?? 'question',
         status: 'open',
+        resolved: false,
       })
-    } else {
+    } else if (entry.type === 'withdrawn') {
       const comment = comments.get(entry.questionId)
       if (comment) {
         comment.status = 'withdrawn'
         comment.supersededBy = entry.replacementId
+      }
+    } else {
+      const comment = comments.get(entry.commentId)
+      if (comment && comment.kind === 'change-request') {
+        comment.resolved = true
+        comment.resolvedAt = entry.createdAt
       }
     }
   }

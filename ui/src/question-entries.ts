@@ -35,7 +35,10 @@ export function resolveQuestionEntries(
 }
 
 export function countOpenQuestions(entries: QuestionEntry[]): number {
-  return entries.filter((e) => e.question.status === 'open' && !e.answer).length
+  return entries.filter((e) => {
+    if (e.question.status !== 'open') return false
+    return e.question.kind === 'change-request' ? !e.question.resolved : !e.answer
+  }).length
 }
 
 export async function scrollToQuestionTarget(entry: QuestionEntry): Promise<void> {

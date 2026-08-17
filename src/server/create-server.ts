@@ -5,7 +5,8 @@ import { join } from 'node:path'
 import { validateBundle, type ValidateBundleResult } from '../bundle/validate-bundle.ts'
 import { publishBundle } from '../bundle/publish.ts'
 import { watchBundle } from './watch-bundle.ts'
-import { raiseQuestion, readQuestions, withdrawAndReplaceQuestion } from '../questions/questions-log.ts'
+import { raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion } from '../questions/questions-log.ts'
+import type { CommentKind } from '../questions/types.ts'
 import { readReviewState, writeReviewState } from '../review-state/review-state.ts'
 import type { ReviewState } from '../review-state/types.ts'
 import { render } from '../renderer/render.ts'
@@ -31,6 +32,8 @@ export function generateWriteToken(): string {
 
 const WRITE_TOKEN_HEADER = 'x-write-token'
 const WITHDRAW_PATH = /^\/questions\/([^/]+)\/withdraw$/
+const RESOLVE_PATH = /^\/questions\/([^/]+)\/resolve$/
+const COMMENT_KINDS: CommentKind[] = ['question', 'change-request']
 const ASSET_CONTENT_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -173,12 +176,16 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
     if (req.method === 'POST' && url.pathname === '/questions') {
       readJsonBody(req)
         .then((body) => {
-          const { body: text, target } = body as { body?: string; target?: unknown }
+          const { body: text, target, kind } = body as { body?: string; target?: unknown; kind?: unknown }
           if (typeof text !== 'string' || text.trim() === '') {
             respond(400, { error: 'body is required' })
             return
           }
-          respond(201, raiseQuestion(bundlePath, text, target as never))
+          if (kind !== undefined && !COMMENT_KINDS.includes(kind as CommentKind)) {
+            respond(400, { error: `kind must be one of ${COMMENT_KINDS.join(', ')}` })
+            return
+          }
+          respond(201, raiseQuestion(bundlePath, text, target as never, (kind as CommentKind) ?? 'question'))
         })
         .catch(() => respond(400, { error: 'invalid JSON body' }))
       return
@@ -196,6 +203,20 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
           respond(201, withdrawAndReplaceQuestion(bundlePath, withdrawMatch[1], text, target as never))
         })
         .catch(() => respond(400, { error: 'invalid JSON body' }))
+      return
+    }
+
+    // Human-only action: a Reviewer marking a change-request Comment resolved. This
+    // never reads from or writes to `review.next.json`/the Generator-owned Review
+    // Document — the Generator has no path to setting `resolved` (see ADR 0002).
+    const resolveMatch = RESOLVE_PATH.exec(url.pathname)
+    if (req.method === 'POST' && resolveMatch) {
+      const resolved = resolveComment(bundlePath, resolveMatch[1])
+      if (!resolved) {
+        respond(404, { error: 'no such Comment' })
+        return
+      }
+      respond(200, resolved)
       return
     }
 

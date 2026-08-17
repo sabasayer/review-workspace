@@ -31,7 +31,7 @@ describe('resolveQuestionEntries', () => {
     const [entry] = resolveQuestionEntries(
       [file],
       [],
-      [{ id: 'q1', createdAt: 't', body: 'why?', status: 'open', target: { type: 'line', path: 'src/auth/login.ts', side: 'head', line: 42, expectedText: '  if (x) {' } }],
+      [{ id: 'q1', createdAt: 't', body: 'why?', status: 'open', kind: 'question', resolved: false, target: { type: 'line', path: 'src/auth/login.ts', side: 'head', line: 42, expectedText: '  if (x) {' } }],
     )
     expect(entry.hunkIndex).toBe(0)
     expect(entry.lineId).toBe('l-42')
@@ -42,8 +42,20 @@ describe('resolveQuestionEntries', () => {
       [file],
       [{ id: 'a1', questionId: 'q2', body: 'because' }],
       [
-        { id: 'q1', createdAt: 't', body: 'open', status: 'open' },
-        { id: 'q2', createdAt: 't', body: 'answered', status: 'open' },
+        { id: 'q1', createdAt: 't', body: 'open', status: 'open', kind: 'question', resolved: false },
+        { id: 'q2', createdAt: 't', body: 'answered', status: 'open', kind: 'question', resolved: false },
+      ],
+    )
+    expect(countOpenQuestions(entries)).toBe(1)
+  })
+
+  it('counts unresolved open change-request comments as open', () => {
+    const entries = resolveQuestionEntries(
+      [file],
+      [],
+      [
+        { id: 'q1', createdAt: 't', body: 'please fix', status: 'open', kind: 'change-request', resolved: false },
+        { id: 'q2', createdAt: 't', body: 'please fix 2', status: 'open', kind: 'change-request', resolved: true, resolvedAt: 't2' },
       ],
     )
     expect(countOpenQuestions(entries)).toBe(1)
@@ -52,8 +64,8 @@ describe('resolveQuestionEntries', () => {
 
 describe('question filters', () => {
   const questions = [
-    { id: 'q1', createdAt: 't', body: 'file', status: 'open' as const, target: { type: 'file' as const, path: 'src/auth/login.ts' } },
-    { id: 'q2', createdAt: 't', body: 'line', status: 'open' as const, target: { type: 'line' as const, path: 'src/auth/login.ts', side: 'head' as const, line: 42, expectedText: 'x' } },
+    { id: 'q1', createdAt: 't', body: 'file', status: 'open' as const, kind: 'question' as const, resolved: false, target: { type: 'file' as const, path: 'src/auth/login.ts' } },
+    { id: 'q2', createdAt: 't', body: 'line', status: 'open' as const, kind: 'question' as const, resolved: false, target: { type: 'line' as const, path: 'src/auth/login.ts', side: 'head' as const, line: 42, expectedText: 'x' } },
   ]
 
   it('filters file-level and line-level questions', () => {
