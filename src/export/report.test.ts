@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildConcernComment, buildConcernComments, buildReport } from './report.ts'
+import { buildReport } from './report.ts'
 import type { ReviewDocument } from '../schema/types.ts'
 import type { ReviewState } from '../review-state/types.ts'
 
@@ -17,10 +17,6 @@ const state: ReviewState = {
     'bg-1': { understood: true, verified: true },
     'bg-2': { understood: true, verified: false },
   },
-  concerns: [
-    { id: 'c-1', note: 'check the timeout math', target: { type: 'line', path: 'src/a.ts', side: 'head', line: 10, expectedText: 'x' } },
-    { id: 'c-2', note: 'no target concern' },
-  ],
   notes: ['overall looks solid'],
   decision: 'request-changes',
 }
@@ -45,10 +41,9 @@ describe('buildReport', () => {
     expect(report).toContain('**Second group** — understood: yes, verified: no')
   })
 
-  it('includes the decision, concerns, and notes', () => {
+  it('includes the decision and notes', () => {
     const report = buildReport(document, state)
     expect(report).toContain('request-changes')
-    expect(report).toContain('check the timeout math')
     expect(report).toContain('overall looks solid')
   })
 
@@ -56,18 +51,5 @@ describe('buildReport', () => {
     const report = buildReport(document, state)
     expect(typeof report).toBe('string')
     expect(report.startsWith('# Review Report')).toBe(true)
-  })
-})
-
-describe('buildConcernComments', () => {
-  it('produces one comment per Concern, attributed to its Target when present', () => {
-    const comments = buildConcernComments(state)
-    expect(comments).toHaveLength(2)
-    expect(comments[0]).toBe('[src/a.ts:10 (head)] check the timeout math')
-    expect(comments[1]).toBe('no target concern')
-  })
-
-  it('exports a single concern comment independently of the full report', () => {
-    expect(buildConcernComment(state.concerns[0])).toContain('src/a.ts:10')
   })
 })

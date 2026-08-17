@@ -10,7 +10,7 @@ import { readReviewState, writeReviewState } from '../review-state/review-state.
 import type { ReviewState } from '../review-state/types.ts'
 import { render } from '../renderer/render.ts'
 import type { ReviewDocument } from '../schema/types.ts'
-import { buildConcernComments, buildReport } from '../export/report.ts'
+import { buildReport } from '../export/report.ts'
 import { resolveAssetPath } from '../security/asset-path.ts'
 
 export interface ReviewServerHandle {
@@ -141,11 +141,6 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
       }
       res.writeHead(200, { 'content-type': 'text/markdown' })
       res.end(buildReport(latest.document as ReviewDocument, readReviewState(bundlePath)))
-      return
-    }
-
-    if (req.method === 'GET' && url.pathname === '/concerns') {
-      respond(200, buildConcernComments(readReviewState(bundlePath)))
       return
     }
 

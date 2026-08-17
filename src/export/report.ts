@@ -1,28 +1,5 @@
-import type { ReviewDocument, Target } from '../schema/types.ts'
-import type { Concern, ReviewState } from '../review-state/types.ts'
-
-function formatTarget(target: Target): string {
-  switch (target.type) {
-    case 'file':
-      return target.path
-    case 'hunk':
-      return `${target.path}#hunk${target.hunkIndex}`
-    case 'binary':
-      return `${target.path} (binary)`
-    case 'line':
-      return `${target.path}:${target.line} (${target.side})`
-  }
-}
-
-export function buildConcernComment(concern: Concern): string {
-  const prefix = concern.target ? `[${formatTarget(concern.target)}] ` : ''
-  return `${prefix}${concern.note}`
-}
-
-/** One comment per Concern, plain text — pasteable individually into an external tool. */
-export function buildConcernComments(state: ReviewState): string[] {
-  return state.concerns.map(buildConcernComment)
-}
+import type { ReviewDocument } from '../schema/types.ts'
+import type { ReviewState } from '../review-state/types.ts'
 
 /**
  * A self-contained Markdown report — no server needed to view it afterward.
@@ -46,16 +23,6 @@ export function buildReport(document: ReviewDocument, state: ReviewState): strin
       lines.push(
         `- **${group.title}** — understood: ${progress?.understood ? 'yes' : 'no'}, verified: ${progress?.verified ? 'yes' : 'no'}`,
       )
-    }
-  }
-  lines.push('')
-
-  lines.push('## Concerns')
-  if (state.concerns.length === 0) {
-    lines.push('_None raised._')
-  } else {
-    for (const comment of buildConcernComments(state)) {
-      lines.push(`- ${comment}`)
     }
   }
   lines.push('')

@@ -123,6 +123,7 @@ describe('startReviewServer', () => {
     expect(created.status).toBe(201)
     const question = await created.json()
     expect(question.status).toBe('open')
+    expect(question.kind).toBe('question')
 
     const list = await (await fetch(`${baseUrl()}/questions`)).json()
     expect(list).toHaveLength(1)
@@ -186,13 +187,12 @@ describe('startReviewServer', () => {
     expect(body.generatorPrompt).toContain(workBundle.replace(/\/$/, ''))
   })
 
-  it('exports a report and concern comments without requiring a write token, and without mutating state', async () => {
+  it('exports a report without requiring a write token, and without mutating state', async () => {
     await fetch(`${baseUrl()}/state`, {
       method: 'PUT',
       headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
       body: JSON.stringify({
         groups: {},
-        concerns: [{ id: 'c-1', note: 'double-check the rate limit window' }],
         notes: ['looks good overall'],
         decision: 'approve',
       }),
@@ -202,13 +202,8 @@ describe('startReviewServer', () => {
     const reportRes = await fetch(`${baseUrl()}/report`)
     expect(reportRes.status).toBe(200)
     const report = await reportRes.text()
-    expect(report).toContain('double-check the rate limit window')
+    expect(report).toContain('looks good overall')
     expect(report).toContain('approve')
-
-    const concernsRes = await fetch(`${baseUrl()}/concerns`)
-    expect(concernsRes.status).toBe(200)
-    const concerns = await concernsRes.json()
-    expect(concerns).toEqual(['double-check the rate limit window'])
 
     const after = await (await fetch(`${baseUrl()}/state`)).json()
     expect(after).toEqual(before)

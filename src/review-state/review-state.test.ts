@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe('review state', () => {
   it('returns the empty default state when state.json does not exist', () => {
-    expect(readReviewState(dir)).toEqual({ groups: {}, concerns: [], notes: [], decision: 'unset' })
+    expect(readReviewState(dir)).toEqual({ groups: {}, notes: [], decision: 'unset' })
   })
 
   it('persists and reloads understanding and verification per Behavioral Group, distinctly', () => {
@@ -31,14 +31,12 @@ describe('review state', () => {
   it('survives a fresh read after being written (simulated restart)', () => {
     writeReviewState(dir, {
       groups: { 'bg-1': { understood: true, verified: true } },
-      concerns: [{ id: 'c-1', note: 'check the timeout math' }],
       notes: ['looks fine overall'],
       decision: 'approve',
     })
 
     const reloaded = readReviewState(dir)
     expect(reloaded.decision).toBe('approve')
-    expect(reloaded.concerns).toHaveLength(1)
     expect(reloaded.notes).toEqual(['looks fine overall'])
   })
 })
