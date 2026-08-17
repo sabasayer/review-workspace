@@ -1,3 +1,18 @@
+# [1.1.0](https://github.com/sabasayer/review-workspace/compare/v1.0.3...v1.1.0) (2026-08-17)
+
+
+### Bug Fixes
+
+* **ci:** install ui/'s own lockfile before running tests ([5bf2caf](https://github.com/sabasayer/review-workspace/commit/5bf2caff16f7b621fcad9f62b99f4aa342d4f9a4))
+* **ci:** use an admin PAT to push past branch protection ([3103428](https://github.com/sabasayer/review-workspace/commit/310342812c833c4e2c73e6f04b46ede5008b3904))
+
+
+### Features
+
+* add a Summary panel to the Review Document ([3bcc5d6](https://github.com/sabasayer/review-workspace/commit/3bcc5d64b4b68cc34d5a8855468e39cf90b0945d))
+* add test baseline, refactor UI, and doc screenshots ([7431419](https://github.com/sabasayer/review-workspace/commit/7431419114951ea04f1b8e8053915ab4fb66594e))
+* **ui:** add a favicon ([66db0ff](https://github.com/sabasayer/review-workspace/commit/66db0ff78b3280ca0fb0e60411482f37c85a666d))
+
 ## [1.0.3](https://github.com/sabasayer/review-workspace/compare/v1.0.2...v1.0.3) (2026-08-03)
 
 
