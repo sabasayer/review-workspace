@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -49,5 +49,19 @@ describe('questions log', () => {
 
   it('returns an empty list when questions.jsonl does not exist', () => {
     expect(readQuestions(dir)).toEqual([])
+  })
+
+  it('raises a Comment tagged kind: question', () => {
+    const q = raiseQuestion(dir, 'Why is this rate limit set to 5?')
+    expect(q.kind).toBe('question')
+  })
+
+  it('treats a pre-existing log entry with no kind field as a question (backward compat)', () => {
+    const legacyEntry = { type: 'raised', id: 'legacy-1', createdAt: new Date().toISOString(), body: 'a Question raised before kind existed' }
+    writeFileSync(join(dir, 'questions.jsonl'), JSON.stringify(legacyEntry) + '\n')
+
+    const [comment] = readQuestions(dir)
+    expect(comment.kind).toBe('question')
+    expect(comment.status).toBe('open')
   })
 })
