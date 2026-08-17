@@ -216,12 +216,69 @@ describe('startReviewServer', () => {
     expect(list.find((c: { id: string }) => c.id === created.id).resolved).toBe(true)
   })
 
-  it('404s resolving a Comment id that does not exist', async () => {
+  it('404s resolving a Comment id that does not exist, without writing anything to the log', async () => {
+    const logPath = join(workBundle, 'questions.jsonl')
+    const before = existsSync(logPath) ? readFileSync(logPath, 'utf-8') : ''
+
     const res = await fetch(`${baseUrl()}/questions/does-not-exist/resolve`, {
       method: 'POST',
       headers: { 'x-write-token': handle.writeToken },
     })
+
     expect(res.status).toBe(404)
+    expect(existsSync(logPath) ? readFileSync(logPath, 'utf-8') : '').toBe(before)
+  })
+
+  it('rejects resolving a question-kind Comment with a non-200 status, without writing anything to the log', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'why is this rate limited?' }),
+      })
+    ).json()
+
+    const logPath = join(workBundle, 'questions.jsonl')
+    const before = readFileSync(logPath, 'utf-8')
+
+    const res = await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    expect(res.status).not.toBe(200)
+    expect(res.status).toBeLessThan(500)
+
+    expect(readFileSync(logPath, 'utf-8')).toBe(before)
+    const list = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(list.find((c: { id: string }) => c.id === created.id).resolved).toBe(false)
+  })
+
+  it('rejects resolving an already-resolved change-request with a non-200 status, without writing again to the log', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'please fix this', kind: 'change-request' }),
+      })
+    ).json()
+
+    await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    const logPath = join(workBundle, 'questions.jsonl')
+    const before = readFileSync(logPath, 'utf-8')
+
+    const res = await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    expect(res.status).not.toBe(200)
+    expect(res.status).toBeLessThan(500)
+    expect(readFileSync(logPath, 'utf-8')).toBe(before)
   })
 
   it('resolving a Comment never touches review.next.json or any Generator-owned file', async () => {

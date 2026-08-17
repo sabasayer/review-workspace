@@ -1,24 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import type { QuestionEntry } from '../question-entries.ts'
+import { useCollapsedComments } from '../composables/useCollapsedComments.ts'
+import { commentKindColor, commentKindLabel, commentStatusColor, commentStatusLabel } from '../comment-style.ts'
 
 defineProps<{ entries: QuestionEntry[] }>()
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ select: [entry: QuestionEntry] }>()
 
-// Resolved change-request Comments collapse by default (per the framework's
-// "never disappear, but stay out of the way once handled" posture) — expanding
-// one is purely local UI state, never anything persisted.
-const expandedIds = ref(new Set<string>())
+const { isCollapsed: isCommentCollapsed, toggleExpanded } = useCollapsedComments()
 
 function isCollapsed(entry: QuestionEntry): boolean {
-  return entry.question.resolved && !expandedIds.value.has(entry.question.id)
-}
-
-function toggleExpanded(id: string) {
-  const next = new Set(expandedIds.value)
-  next.has(id) ? next.delete(id) : next.add(id)
-  expandedIds.value = next
+  return isCommentCollapsed(entry.question)
 }
 </script>
 
@@ -29,23 +21,11 @@ function toggleExpanded(id: string) {
       <ul class="space-y-3">
         <li v-for="entry in entries" :key="entry.question.id" class="rounded-lg border border-default p-3 text-sm">
           <div class="mb-1 flex items-center gap-2">
-            <UBadge size="sm" variant="subtle" :color="entry.question.kind === 'change-request' ? 'error' : 'info'">
-              {{ entry.question.kind === 'change-request' ? 'Change request' : 'Question' }}
+            <UBadge size="sm" variant="subtle" :color="commentKindColor(entry.question)">
+              {{ commentKindLabel(entry.question) }}
             </UBadge>
-            <UBadge
-              size="sm"
-              variant="subtle"
-              :color="entry.question.resolved ? 'success' : entry.answer ? 'success' : entry.question.status === 'open' ? 'warning' : 'neutral'"
-            >
-              {{
-                entry.question.resolved
-                  ? 'Resolved'
-                  : entry.answer
-                    ? 'Answered'
-                    : entry.question.status === 'open'
-                      ? 'Open'
-                      : 'Withdrawn'
-              }}
+            <UBadge size="sm" variant="subtle" :color="commentStatusColor(entry.question, !!entry.answer)">
+              {{ commentStatusLabel(entry.question, !!entry.answer) }}
             </UBadge>
             <span v-if="entry.filePath" class="truncate font-mono text-xs text-muted">{{ entry.filePath }}</span>
             <UButton

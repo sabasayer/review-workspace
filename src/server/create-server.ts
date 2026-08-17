@@ -211,12 +211,16 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
     // Document — the Generator has no path to setting `resolved` (see ADR 0002).
     const resolveMatch = RESOLVE_PATH.exec(url.pathname)
     if (req.method === 'POST' && resolveMatch) {
-      const resolved = resolveComment(bundlePath, resolveMatch[1])
-      if (!resolved) {
+      const result = resolveComment(bundlePath, resolveMatch[1])
+      if (result.outcome === 'not-found') {
         respond(404, { error: 'no such Comment' })
         return
       }
-      respond(200, resolved)
+      if (result.outcome === 'not-resolvable') {
+        respond(400, { error: 'Comment is not an open change-request' })
+        return
+      }
+      respond(200, result.comment)
       return
     }
 

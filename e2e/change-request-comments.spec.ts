@@ -88,6 +88,20 @@ test.describe('change-request comments', () => {
 
     await expect(badge).toHaveText('✓')
     await expect(page.getByText('Resolved', { exact: true }).first()).toBeVisible()
+
+    // The inline/popover thread also collapses a resolved change-request by default,
+    // same as the slideover — the full body renders as plain truncated text (not the
+    // "leading-relaxed" paragraph the expanded view uses) until Show is clicked.
+    const inlineShowButton = page.getByRole('button', { name: 'Show' })
+    await expect(inlineShowButton).toBeVisible()
+    const expandedBody = page.locator('p.leading-relaxed', { hasText: 'Please extract this into a helper function' })
+    await expect(expandedBody).toHaveCount(0)
+    await page.screenshot({ path: join(docScreenshots, 'change-request-inline-resolved-collapsed.png') })
+
+    await inlineShowButton.click()
+    await expect(page.getByRole('button', { name: 'Hide' })).toBeVisible()
+    await expect(expandedBody).toBeVisible()
+
     await page.keyboard.press('Escape')
     await expect(page.getByRole('button', { name: 'Mark resolved' })).toHaveCount(0)
 

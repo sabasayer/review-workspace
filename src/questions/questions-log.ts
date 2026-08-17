@@ -88,15 +88,28 @@ export function withdrawAndReplaceQuestion(
   }
 }
 
+export type ResolveCommentResult =
+  | { outcome: 'resolved'; comment: Comment }
+  | { outcome: 'not-found' }
+  | { outcome: 'not-resolvable'; comment: Comment }
+
+function isOpenChangeRequest(comment: Comment): boolean {
+  return comment.kind === 'change-request' && comment.status === 'open' && !comment.resolved
+}
+
 /**
- * Marks a change-request Comment resolved. This is a human-only, reviewer-triggered
+ * Marks an open change-request Comment resolved. This is a human-only, reviewer-triggered
  * action recorded in the same append-only log — nothing a Generator writes (the
- * Review Document, `review.next.json`) can ever produce this entry. Resolving a
- * question Comment, or a Comment that doesn't exist, is a no-op: the entry is still
- * appended (the log stays append-only and honest about every action taken), but
- * `readQuestions`'s reduction only applies it to an existing change-request Comment.
+ * Review Document, `review.next.json`) can ever produce this entry.
+ *
+ * Validates before writing: a Comment that doesn't exist, or isn't currently an open
+ * change-request, is rejected without appending anything to the log.
  */
-export function resolveComment(bundlePath: string, commentId: string): Comment | undefined {
+export function resolveComment(bundlePath: string, commentId: string): ResolveCommentResult {
+  const comment = readQuestions(bundlePath).find((c) => c.id === commentId)
+  if (!comment) return { outcome: 'not-found' }
+  if (!isOpenChangeRequest(comment)) return { outcome: 'not-resolvable', comment }
+
   const entry: CommentLogEntry = {
     type: 'resolved',
     id: randomUUID(),
@@ -104,7 +117,10 @@ export function resolveComment(bundlePath: string, commentId: string): Comment |
     commentId,
   }
   appendEntry(bundlePath, entry)
-  return readQuestions(bundlePath).find((comment) => comment.id === commentId)
+  return {
+    outcome: 'resolved',
+    comment: { ...comment, resolved: true, resolvedAt: entry.createdAt },
+  }
 }
 
 /** Reduces the append-only log into the current set of Comments. */

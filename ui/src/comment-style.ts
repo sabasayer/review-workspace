@@ -22,3 +22,30 @@ export function commentBadgeClasses(comment: Question): string {
   }
   return 'border-info/60 bg-info/15 text-info hover:bg-info hover:text-inverted'
 }
+
+/** Badge color for a Comment's kind — change-request reads as error/red, question as info/blue. */
+export function commentKindColor(comment: Question): 'error' | 'info' {
+  return comment.kind === 'change-request' ? 'error' : 'info'
+}
+
+/** Badge label for a Comment's kind. */
+export function commentKindLabel(comment: Question): string {
+  return comment.kind === 'change-request' ? 'Change request' : 'Question'
+}
+
+/**
+ * Badge color for a Comment's status. `hasAnswer` lets a Question that's been
+ * answered read as success, same as a resolved change-request — pass it only where
+ * that distinction is tracked (the slideover); omit it where it isn't (the inline thread).
+ */
+export function commentStatusColor(comment: Question, hasAnswer = false): 'success' | 'warning' | 'neutral' {
+  if (comment.resolved || hasAnswer) return 'success'
+  return comment.status === 'open' ? 'warning' : 'neutral'
+}
+
+/** Badge label for a Comment's status, matching {@link commentStatusColor}'s cases. */
+export function commentStatusLabel(comment: Question, hasAnswer = false): string {
+  if (comment.resolved) return 'Resolved'
+  if (hasAnswer) return 'Answered'
+  return comment.status === 'open' ? 'Open' : 'Withdrawn'
+}
