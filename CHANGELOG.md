@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/sabasayer/review-workspace/compare/v1.1.0...v1.2.0) (2026-08-17)
+
+
+### Features
+
+* unify Question into Comment with kind, retire Concern ([5e39452](https://github.com/sabasayer/review-workspace/commit/5e394527db1c0a2f85e8ab7c1a51fa5c30d16abf)), closes [#9](https://github.com/sabasayer/review-workspace/issues/9) [#7](https://github.com/sabasayer/review-workspace/issues/7)
+
 # [1.1.0](https://github.com/sabasayer/review-workspace/compare/v1.0.3...v1.1.0) (2026-08-17)
 
 
