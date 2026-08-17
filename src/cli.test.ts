@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 const cliPath = fileURLToPath(new URL('./cli.ts', import.meta.url))
 const validBundle = fileURLToPath(new URL('../fixtures/bundles/valid/', import.meta.url))
 const blockingBundle = fileURLToPath(new URL('../fixtures/bundles/unparseable-json/', import.meta.url))
+const chainedRound1Bundle = fileURLToPath(new URL('../fixtures/bundles/chained-mr-42/', import.meta.url))
+const chainedRound2Bundle = fileURLToPath(new URL('../fixtures/bundles/chained-mr-42-r2/', import.meta.url))
 
 function runCli(args: string[]) {
   try {
@@ -80,5 +82,54 @@ describe('cli', () => {
     } finally {
       child.kill()
     }
+  })
+})
+
+describe('cli round', () => {
+  let chainedWorkParent: string
+  let chainedWorkBundle: string
+  let patchPath: string
+
+  beforeEach(() => {
+    chainedWorkParent = mkdtempSync(join(tmpdir(), 'review-workspace-cli-round-'))
+    chainedWorkBundle = join(chainedWorkParent, 'chained-mr-42')
+    cpSync(chainedRound1Bundle, chainedWorkBundle, { recursive: true })
+    patchPath = join(chainedWorkParent, 'incremental.diff')
+    writeFileSync(patchPath, readFileSync(join(chainedRound2Bundle, 'changes.diff'), 'utf-8'))
+  })
+
+  afterEach(() => {
+    rmSync(chainedWorkParent, { recursive: true, force: true })
+  })
+
+  it('reports no new round needed when the live head matches', () => {
+    const result = runCli(['round', chainedWorkBundle, '--live-head', 'bbb2222', '--patch', patchPath])
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({ needsNewRound: false })
+  })
+
+  it('scaffolds a sibling round bundle when the live head has moved', () => {
+    const result = runCli(['round', chainedWorkBundle, '--live-head', 'ccc3333', '--patch', patchPath])
+    expect(result.status).toBe(0)
+
+    const output = JSON.parse(result.stdout)
+    const expectedRoundPath = join(chainedWorkParent, 'chained-mr-42-r2')
+    expect(output.needsNewRound).toBe(true)
+    expect(output.bundlePath).toBe(expectedRoundPath)
+    expect(output.chain).toEqual({
+      mrKey: 'example/widgets!42',
+      round: 2,
+      previousBundle: '../chained-mr-42',
+      previousHead: 'bbb2222',
+    })
+    expect(existsSync(expectedRoundPath)).toBe(true)
+
+    const openResult = runCli(['open', expectedRoundPath])
+    expect(openResult.status).toBe(0)
+  })
+
+  it('exits non-zero when --live-head or --patch is missing', () => {
+    const result = runCli(['round', chainedWorkBundle])
+    expect(result.status).not.toBe(0)
   })
 })

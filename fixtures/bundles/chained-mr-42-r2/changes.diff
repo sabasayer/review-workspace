@@ -1,0 +1,15 @@
+diff --git a/src/auth/login.ts b/src/auth/login.ts
+index 1111111..3333333 100644
+--- a/src/auth/login.ts
++++ b/src/auth/login.ts
+@@ -40,4 +40,10 @@ export function login(username: string, password: string) {
+   const attempts = getAttempts(username)
+
++  if (attempts > MAX_ATTEMPTS) {
++    throw new RateLimitError(username)
++  }
++
++  logAttempt(username)
++
+   return authenticate(username, password)
+ }
