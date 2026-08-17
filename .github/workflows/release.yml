@@ -43,5 +43,12 @@ jobs:
 
       - run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # main requires PRs for everyone except repo admins, and the default
+          # GITHUB_TOKEN acts as github-actions[bot] (not an admin) — it can't
+          # push @semantic-release/git's version-bump commit or the release tag
+          # to a protected branch. RELEASE_PAT is a fine-grained personal access
+          # token, scoped to this repo only, from an admin account: Contents
+          # (read/write) to push past branch protection, Issues + Pull requests
+          # (read/write) for @semantic-release/github's release-comment step.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
