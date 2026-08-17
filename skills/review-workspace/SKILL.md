@@ -33,7 +33,7 @@ The Generator role above only covers producing `review.next.json`. Starting from
    - If the description references uploaded images (`/uploads/<hash>/<file>`), fetch them via `glab api projects/<...>/uploads/<hash>/<file>` into `.bundles/<name>/assets/uploads/<hash>/<file>` — a browser `<img>` pointed straight at gitlab.com gets blocked by ORB for private repos (no session cookie flows to a subresource request); routing through the bundle's own `assets/` and the engine's same-origin `/assets/*` route avoids that entirely.
    - Validate it opens: `npx review-workspace open .bundles/<name>` should print "Bundle is valid."
 3. **Invoke the Generator** (the rest of this document) against that bundle path — it reads `changes.diff`, writes `review.next.json`, and runs `npx review-workspace publish <bundle>`.
-4. **Serve it**: `npx review-workspace serve .bundles/<name> --port 4317` — one process, hosts both the API and the UI (prints a write token too, needed only to raise/answer Questions, not to view). Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first; if something's already listening (e.g. a previous bundle), ask the user whether to switch it over or run a second instance on another port. Open the printed `http://127.0.0.1:<port>` URL.
+4. **Serve it**: `npx review-workspace serve .bundles/<name> --port 4317` — one process, hosts both the API and the UI. Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first; if something's already listening (e.g. a previous bundle), ask the user whether to switch it over or run a second instance on another port. Open the printed `http://127.0.0.1:<port>` URL, and **always pass the printed write token on to the user along with what it's for** — viewing the bundle needs no token, but raising or answering a Question in the UI does, so without it in hand the user can't ask anything back.
 
 For an **existing** bundle someone's already reviewing (Questions raised, feedback on the UI itself), skip straight to invoking the Generator's **Improve** branch — no need to re-scaffold.
 
@@ -79,3 +79,4 @@ Report:
 - Evidence or media gaps
 - Any Questions answered
 - Any framework decision added or changed
+- If served: the URL, the write token, and what the token is for (raising/answering Questions) — always share it, never withhold it as an implementation detail
