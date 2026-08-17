@@ -34,6 +34,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir ui install --frozen-lockfile # ui/ has its own lockfile, not a workspace member of the root
 
       # Fail fast with a clear message here, even though `npm publish` (invoked by
       # @semantic-release/npm below) would also run these via prepublishOnly.
