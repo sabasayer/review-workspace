@@ -44,3 +44,17 @@ skills/        Generator skill (separate from engine/UI work)
 ## Generator skill
 
 Bundle generation is out of scope for engine/UI changes — see [`skills/review-workspace/SKILL.md`](skills/review-workspace/SKILL.md).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (`gh` CLI); external PRs are not a triage surface. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Canonical role names used as-is (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See [`docs/agents/domain.md`](docs/agents/domain.md).
