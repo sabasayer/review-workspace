@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 import type { ReviewDocument, Target } from '../schema/types.ts'
 import type { ParsedPatch, PatchFile } from '../patch/types.ts'
 import type { Diagnostic } from '../bundle/diagnostics.ts'
-import { collectCarriedReviewContent, readChain } from '../bundle/carry-forward.ts'
+import { collectCarriedReviewContent, createCaches, readChain } from '../bundle/carry-forward.ts'
 import { ALLOWED_ASSET_EXTENSIONS } from '../security/asset-path.ts'
 import type {
   RenderedFile,
@@ -157,15 +157,16 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
   }
 
   // Both `chain` below and `collectCarriedReviewContent` read the same chain.json —
-  // `readChain` is cached per bundlePath (see carry-forward.ts) so this is one disk
-  // read either way, but computing it once here keeps that explicit rather than relying
-  // on the cache to paper over an avoidable second call.
-  const chain = readChain(bundlePath)
+  // sharing one `Caches` instance across both calls (scoped to this single `render()`
+  // call, then discarded) makes that one disk read either way, without ever letting the
+  // read survive past this call to go stale on a later one.
+  const caches = createCaches()
+  const chain = readChain(bundlePath, caches)
 
   // Behavioral Groups/Annotations from earlier rounds the incremental patch doesn't
   // touch surface here unchanged (framework.md's "slim rounds") — round N's own
   // document only needs fresh ones for genuinely new material.
-  const carried = collectCarriedReviewContent(bundlePath, document)
+  const carried = collectCarriedReviewContent(bundlePath, document, caches)
   const effectiveDocument: ReviewDocument = {
     ...document,
     behavioralGroups: [...(document.behavioralGroups ?? []), ...carried.behavioralGroups],

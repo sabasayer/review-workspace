@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -150,5 +150,25 @@ describe('collectCarriedReviewContent', () => {
   it('returns nothing for a round-1 bundle', () => {
     const ownDocument = JSON.parse(readFileSync(join(round1, 'review.json'), 'utf-8'))
     expect(collectCarriedReviewContent(round1, ownDocument)).toEqual({ behavioralGroups: [], annotations: [] })
+  })
+
+  it('reflects an ancestor bundle republished after it was already read, rather than serving stale content', () => {
+    const ownDocument = JSON.parse(readFileSync(join(round2, 'review.json'), 'utf-8'))
+
+    // First read: as an ancestor of round2's chain, round1's review.json gets read here.
+    const before = collectCarriedReviewContent(round2, ownDocument)
+    expect(before.behavioralGroups.find((g) => g.id === 'bg-logging')?.title).toBe('Structured logging')
+
+    // Simulate the "Improve" workflow republishing round1's review.json in place —
+    // same base/head, new content — the way a long-running server watching round2
+    // would never see if round1's content were cached for the lifetime of the process.
+    const round1Document = JSON.parse(readFileSync(join(round1, 'review.json'), 'utf-8'))
+    round1Document.behavioralGroups[0].title = 'Structured logging (revised)'
+    writeFileSync(join(round1, 'review.json'), JSON.stringify(round1Document))
+
+    // A fresh top-level call — no caches passed in, so none can have survived from the
+    // read above — must see the republished content.
+    const after = collectCarriedReviewContent(round2, ownDocument)
+    expect(after.behavioralGroups.find((g) => g.id === 'bg-logging')?.title).toBe('Structured logging (revised)')
   })
 })

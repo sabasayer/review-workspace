@@ -9,42 +9,54 @@ import type { Chain } from './round.ts'
 import { evaluateResolution, type Resolution } from './resolution.ts'
 import { incrementalTouchedPaths } from './incremental-patch.ts'
 
-// `chain.json`, `changes.diff`, and (for an ancestor bundle) `review.json` are all
-// write-once bundle inputs — round N's chain never changes after `scaffoldNextRound`
-// writes it, and a bundle's own `changes.diff` is never rewritten in place. Only the
-// *current* round's `review.json` (via publish) and `questions.jsonl` (via Reviewer
-// actions) mutate during a live session, and neither is read through these caches.
-// Caching them by bundlePath avoids re-reading and re-parsing every ancestor bundle's
-// files on every call in the same request/render — `render()`, `computeCarriedResolutions`,
-// `collectCommentHistory`, and `collectCarriedReviewContent` all walk the same chain.
-const chainCache = new Map<string, Chain | undefined>()
-const patchCache = new Map<string, ParsedPatch>()
-const reviewDocumentCache = new Map<string, ReviewDocument>()
+/**
+ * `chain.json`, `changes.diff`, and (for an ancestor bundle) `review.json` are all
+ * bundle inputs a caller might otherwise re-read and re-parse once per ancestor per
+ * function — `render()`, `computeCarriedResolutions`, `collectCommentHistory`, and
+ * `collectCarriedReviewContent` all walk the same chain. A `Caches` instance memoizes
+ * those reads by bundlePath for the lifetime of a single top-level call.
+ *
+ * Deliberately NOT a module-level singleton: a round's `review.json` can legitimately
+ * change after this process first reads it (the "Improve" workflow republishes a
+ * bundle without changing its base/head, including one that's since become an
+ * ancestor in a longer-running server's chain). A cache instance is created fresh by
+ * each exported entry point below and discarded when that call returns, so a later
+ * call always sees whatever is on disk now rather than whatever some earlier call saw.
+ */
+export interface Caches {
+  chain: Map<string, Chain | undefined>
+  patch: Map<string, ParsedPatch>
+  reviewDocument: Map<string, ReviewDocument>
+}
 
-export function readChain(bundlePath: string): Chain | undefined {
-  if (!chainCache.has(bundlePath)) {
+export function createCaches(): Caches {
+  return { chain: new Map(), patch: new Map(), reviewDocument: new Map() }
+}
+
+export function readChain(bundlePath: string, caches: Caches = createCaches()): Chain | undefined {
+  if (!caches.chain.has(bundlePath)) {
     const path = join(bundlePath, 'chain.json')
-    chainCache.set(bundlePath, existsSync(path) ? (JSON.parse(readFileSync(path, 'utf-8')) as Chain) : undefined)
+    caches.chain.set(bundlePath, existsSync(path) ? (JSON.parse(readFileSync(path, 'utf-8')) as Chain) : undefined)
   }
-  return chainCache.get(bundlePath)
+  return caches.chain.get(bundlePath)
 }
 
 export function resolvePreviousBundlePath(bundlePath: string, chain: Chain): string {
   return resolve(bundlePath, chain.previousBundle)
 }
 
-function readPatch(bundlePath: string): ParsedPatch {
-  if (!patchCache.has(bundlePath)) {
-    patchCache.set(bundlePath, parsePatch(readFileSync(join(bundlePath, 'changes.diff'), 'utf-8')))
+function readPatch(bundlePath: string, caches: Caches): ParsedPatch {
+  if (!caches.patch.has(bundlePath)) {
+    caches.patch.set(bundlePath, parsePatch(readFileSync(join(bundlePath, 'changes.diff'), 'utf-8')))
   }
-  return patchCache.get(bundlePath)!
+  return caches.patch.get(bundlePath)!
 }
 
-function readReviewDocument(bundlePath: string): ReviewDocument {
-  if (!reviewDocumentCache.has(bundlePath)) {
-    reviewDocumentCache.set(bundlePath, JSON.parse(readFileSync(join(bundlePath, 'review.json'), 'utf-8')) as ReviewDocument)
+function readReviewDocument(bundlePath: string, caches: Caches): ReviewDocument {
+  if (!caches.reviewDocument.has(bundlePath)) {
+    caches.reviewDocument.set(bundlePath, JSON.parse(readFileSync(join(bundlePath, 'review.json'), 'utf-8')) as ReviewDocument)
   }
-  return reviewDocumentCache.get(bundlePath)!
+  return caches.reviewDocument.get(bundlePath)!
 }
 
 function openChangeRequests(bundlePath: string): Comment[] {
@@ -56,8 +68,8 @@ function openChangeRequests(bundlePath: string): Comment[] {
  * `chain.json`) is the base case, otherwise resolve the previous round's bundle path
  * and hand it (plus the chain itself, for its `round` number) to `step`.
  */
-function walkChain<T>(bundlePath: string, base: () => T, step: (previousBundlePath: string, chain: Chain) => T): T {
-  const chain = readChain(bundlePath)
+function walkChain<T>(bundlePath: string, caches: Caches, base: () => T, step: (previousBundlePath: string, chain: Chain) => T): T {
+  const chain = readChain(bundlePath, caches)
   return chain ? step(resolvePreviousBundlePath(bundlePath, chain), chain) : base()
 }
 
@@ -67,9 +79,10 @@ function walkChain<T>(bundlePath: string, base: () => T, step: (previousBundlePa
  * — safe to call every time a round-N bundle is opened, validated, or rendered.
  * No-ops for a round-1 bundle (no `chain.json`).
  */
-export function carryForwardChain(bundlePath: string): void {
+export function carryForwardChain(bundlePath: string, caches: Caches = createCaches()): void {
   walkChain(
     bundlePath,
+    caches,
     () => undefined,
     (previousBundlePath) => {
       for (const comment of openChangeRequests(previousBundlePath)) {
@@ -89,16 +102,17 @@ export interface CarriedResolution {
  * incremental patch. Assumes `carryForwardChain` has already copied them into this
  * round's own log — this only reads, never writes.
  */
-export function computeCarriedResolutions(bundlePath: string): CarriedResolution[] {
+export function computeCarriedResolutions(bundlePath: string, caches: Caches = createCaches()): CarriedResolution[] {
   return walkChain(
     bundlePath,
+    caches,
     () => [],
     (previousBundlePath) => {
       const carriedIds = new Set(openChangeRequests(previousBundlePath).map((c) => c.id))
       if (carriedIds.size === 0) return []
 
-      const previousPatch = readPatch(previousBundlePath)
-      const currentPatch = readPatch(bundlePath)
+      const previousPatch = readPatch(previousBundlePath, caches)
+      const currentPatch = readPatch(bundlePath, caches)
       return readQuestions(bundlePath)
         .filter((c) => carriedIds.has(c.id))
         .map((comment) => ({ comment, resolution: evaluateResolution(comment, previousPatch, currentPatch) }))
@@ -106,13 +120,14 @@ export function computeCarriedResolutions(bundlePath: string): CarriedResolution
   )
 }
 
-function findOriginRound(bundlePath: string, commentId: string): number {
+function findOriginRound(bundlePath: string, commentId: string, caches: Caches): number {
   return walkChain(
     bundlePath,
+    caches,
     () => 1,
     (previousBundlePath, chain) => {
       const inPreviousRound = readQuestions(previousBundlePath).some((c) => c.id === commentId)
-      return inPreviousRound ? findOriginRound(previousBundlePath, commentId) : chain.round
+      return inPreviousRound ? findOriginRound(previousBundlePath, commentId, caches) : chain.round
     },
   )
 }
@@ -131,23 +146,24 @@ export interface CommentView extends Comment {
  * simply keep showing from whichever round's log actually holds them (framework.md's
  * "never silently discard evidence").
  */
-export function collectCommentHistory(bundlePath: string): Array<Comment & { originRound: number }> {
-  const own = readQuestions(bundlePath).map((c) => ({ ...c, originRound: findOriginRound(bundlePath, c.id) }))
+export function collectCommentHistory(bundlePath: string, caches: Caches = createCaches()): Array<Comment & { originRound: number }> {
+  const own = readQuestions(bundlePath).map((c) => ({ ...c, originRound: findOriginRound(bundlePath, c.id, caches) }))
   return walkChain(
     bundlePath,
+    caches,
     () => own,
     (previousBundlePath) => {
       const ownIds = new Set(own.map((c) => c.id))
-      const ancestorHistory = collectCommentHistory(previousBundlePath).filter((c) => !ownIds.has(c.id))
+      const ancestorHistory = collectCommentHistory(previousBundlePath, caches).filter((c) => !ownIds.has(c.id))
       return [...own, ...ancestorHistory].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     },
   )
 }
 
 /** Every Comment relevant to this bundle, with its claimed Resolution attached where one applies. */
-export function listComments(bundlePath: string): CommentView[] {
-  const resolutions = new Map(computeCarriedResolutions(bundlePath).map((c) => [c.comment.id, c.resolution]))
-  return collectCommentHistory(bundlePath).map((comment) => ({ ...comment, resolution: resolutions.get(comment.id) }))
+export function listComments(bundlePath: string, caches: Caches = createCaches()): CommentView[] {
+  const resolutions = new Map(computeCarriedResolutions(bundlePath, caches).map((c) => [c.comment.id, c.resolution]))
+  return collectCommentHistory(bundlePath, caches).map((comment) => ({ ...comment, resolution: resolutions.get(comment.id) }))
 }
 
 function targetKey(target: Target): string {
@@ -175,19 +191,24 @@ export interface CarriedReviewContent {
  * whole chain so a group/annotation keeps surfacing across every later round until a
  * round's incremental patch actually touches its file, or a later round redeclares it.
  */
-export function collectCarriedReviewContent(bundlePath: string, ownDocument: ReviewDocument): CarriedReviewContent {
+export function collectCarriedReviewContent(
+  bundlePath: string,
+  ownDocument: ReviewDocument,
+  caches: Caches = createCaches(),
+): CarriedReviewContent {
   return walkChain(
     bundlePath,
+    caches,
     () => ({ behavioralGroups: [], annotations: [] }),
     (previousBundlePath) => {
-      const previousDocument = readReviewDocument(previousBundlePath)
-      const previousCarried = collectCarriedReviewContent(previousBundlePath, previousDocument)
+      const previousDocument = readReviewDocument(previousBundlePath, caches)
+      const previousCarried = collectCarriedReviewContent(previousBundlePath, previousDocument, caches)
       const previousAll: CarriedReviewContent = {
         behavioralGroups: [...(previousDocument.behavioralGroups ?? []), ...previousCarried.behavioralGroups],
         annotations: [...(previousDocument.annotations ?? []), ...previousCarried.annotations],
       }
 
-      const touchedPaths = incrementalTouchedPaths(readPatch(previousBundlePath), readPatch(bundlePath))
+      const touchedPaths = incrementalTouchedPaths(readPatch(previousBundlePath, caches), readPatch(bundlePath, caches))
       const ownTargetKeys = new Set((ownDocument.annotations ?? []).map((a) => targetKey(a.target)))
       const ownGroupIds = new Set((ownDocument.behavioralGroups ?? []).map((g) => g.id))
 
