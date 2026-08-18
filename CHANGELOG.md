@@ -1,3 +1,15 @@
+# [1.5.0](https://github.com/sabasayer/review-workspace/compare/v1.4.0...v1.5.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* **#10:** match hand-off Annotation context by semantic Target equality ([7f2e9ad](https://github.com/sabasayer/review-workspace/commit/7f2e9ad625341e8b237f65a4c0161a3616e006ee)), closes [#10](https://github.com/sabasayer/review-workspace/issues/10)
+
+
+### Features
+
+* export open change-request comments as a hand-off file ([#10](https://github.com/sabasayer/review-workspace/issues/10)) ([7230452](https://github.com/sabasayer/review-workspace/commit/723045235705890a6f405500876a393c357c6ed5))
+
 # [1.4.0](https://github.com/sabasayer/review-workspace/compare/v1.3.0...v1.4.0) (2026-08-18)
 
 
