@@ -40,7 +40,7 @@ For an **existing** bundle someone's already reviewing (Questions raised, feedba
 
 ## Generate
 
-1. Acquire or read the Comparison's complete Unified Patch and any available evidence (issue/MR description, discussions, pipeline results, base/head image blobs, open Comments — questions and change-requests alike — in `questions.jsonl`).
+1. Acquire or read the Comparison's complete Unified Patch and any available evidence (issue/MR description, discussion threads — fetch and read these before writing Evidence/Verification, see [FRAMEWORK.md](FRAMEWORK.md)'s non-negotiable #7 and "Discussion Evidence" — pipeline results, base/head image blobs, open Comments — questions and change-requests alike — in `questions.jsonl`).
 2. Build Behavioral Groups: cluster changed files by behavior, assign `risk`, and order them for review (foundational/highest-risk first).
 3. Write Annotations at decision-relevant Targets (File/Hunk/Line/Binary) — Line Targets must carry `expectedText` copied exactly from the patch, or the validator will flag them stale.
 4. Write Evidence, classified `observed` / `author-claim` / `inference`.
