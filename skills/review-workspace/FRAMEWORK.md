@@ -18,6 +18,7 @@ The workspace is a decision surface, not an AI report. Code remains primary; gen
 4. **Preserve reviewer judgment.** Classify every Evidence item's `kind` (`observed`, `author-claim`, `inference`) so the UI can distinguish observed fact from your inference. Never present inference as fact or make the approval decision.
 5. **Answer Questions, don't touch change-requests.** `questions.jsonl` holds Comments of two kinds. For `kind: 'question'`: respond with exactly one Answer per Question, citing Evidence where applicable — never as free-form commentary elsewhere in the document. For `kind: 'change-request'`: never write an Answer, and never say or imply one was addressed — that's not yours to decide. Resolution status for a change-request is computed mechanically by the engine itself once a later round exists (whether its Target was touched by the incremental diff, or has gone stale) and only the human reviewer can actually mark one resolved. Your only obligation to a change-request is the same one every Target gets: make sure it still resolves cleanly against the diff you're covering.
 6. **Be honest about verification.** Mark a Verification item `unverified` unless real proof (a passing test, an observed run, a matching snapshot) already exists. A screenshot or a green mocked test is not proof of real backend behavior.
+7. **Read the conversation, not just the diff.** Fetch and read the Comparison's discussion threads before writing Evidence or Verification about anything a human reviewer might already have raised, answered, or the author might already have changed scope on. A Verification `gap` that a resolved discussion thread already answered is a wasted flag, not caution — see "Discussion Evidence" below.
 
 ## The Review Document you produce
 
@@ -84,6 +85,16 @@ When the Comparison has an associated CI pipeline (e.g. a GitLab MR's `head_pipe
 4. A **failed** job that's evidence *against* a claim (e.g. "this fix works" but the job that would prove it failed) is exactly as valuable as a passing one — record it as Evidence either way, and let a Verification item or Annotation state what it means for the claim. Never omit a failure because it's inconvenient to the narrative.
 5. If no pipeline exists yet, or a specific job's relevance to this diff is unclear, don't fabricate a pipeline Evidence entry — record a Verification `gap` instead, same as any other missing evidence.
 
+### Discussion Evidence
+
+Fetch the Comparison's discussion threads before writing Evidence or Verification, not after — a concern you're about to flag as a gap may already be raised, answered, or overtaken by a scope change a reviewer or the author already settled in conversation. Mentioning "discussions" once in a bullet list isn't enough guidance to make this actually happen reliably — treat it with the same concrete recipe as Pipeline/Binary evidence get:
+
+1. Fetch every discussion thread on the Comparison (e.g. `glab api projects/<url-encoded-project>/merge_requests/<N>/discussions`; GitHub splits this across `gh api repos/<owner>/<repo>/pulls/<N>/comments` for review comments and `gh api repos/<owner>/<repo>/issues/<N>/comments` for general ones).
+2. Read **resolved and unresolved threads differently**. A resolved thread is settled context — it can explain why something in the diff looks the way it does, why a described feature is absent, or that a concern was already raised and addressed; quote it rather than re-deriving the same concern from scratch. An unresolved thread is a live, open concern — treat it the same way you'd treat an open Question: either your Annotations/Evidence already address it (say so, citing the thread), or it's a genuine Verification `gap`.
+3. A comment's content is **not automatically fact** just because you observed it. You directly observing that a participant said something is `kind: 'observed'` (you looked at the real thread) — but the *claim inside* that comment (e.g. "I fixed this," "I removed this entirely," "I'll do X instead") is exactly as unverified as an MR description's claims until you've checked it against the actual diff. Write the Evidence with `kind: 'author-claim'` when citing what someone said they did or will do, and cross-check it against the diff/code before treating it as settled — a stated intention (especially about work outside this diff, like a dashboard, a follow-up ticket, or infra elsewhere) usually can't be verified from this Comparison at all, and belongs in a Verification `gap` saying so explicitly rather than being marked `verified` by association.
+4. A discussion thread from this forge (GitLab/GitHub) is a different thing from this bundle's own `questions.jsonl` Comments — don't conflate the two. The forge's thread is external evidence about the Comparison; `questions.jsonl` is this bundle's own reviewer-facing Comment log, handled per step 5 below.
+5. If discussions are fetched and none are relevant, that's fine — don't manufacture relevance. If discussions can't be fetched at all (no access, unsupported forge), record that as a Verification `gap`, same as any other missing evidence source.
+
 ## Generation workflow
 
 ### 1. Acquire source material
@@ -94,7 +105,7 @@ Read from the bundle directory and, if materializing a brand-new bundle, from th
 - `review.json` — the last published Review Document, if any (its `comparison` identity must match exactly)
 - `questions.jsonl` — open Comments needing your attention: `kind: 'question'` needs an Answer, `kind: 'change-request'` does not (see step 5)
 - `assets/` — evidence images already present
-- Whatever's available externally: issue/MR description, discussions, pipeline jobs and failures, base/head image blobs, runtime previews
+- Whatever's available externally: issue/MR description, discussion threads (fetch and read these before writing Evidence/Verification — see "Discussion Evidence" above), pipeline jobs and failures, base/head image blobs, runtime previews
 - The Comparison's own identity metadata (title, number, url, author, source/target branch, description) — set these on `comparison` whenever the source system exposes them (e.g. a GitLab/GitHub MR); the UI's metadata panel has nothing to show without them
 
 If evidence is unavailable, record it as a Verification `gap`. Do not manufacture a substitute.
