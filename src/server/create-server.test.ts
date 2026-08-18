@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -399,5 +399,87 @@ describe('GET /assets/*', () => {
   it('rejects a disallowed file type even if it exists under assets/', async () => {
     const res = await fetch(`http://127.0.0.1:${imageHandle.port}/assets/snapshot/notes.txt`)
     expect(res.status).toBe(404)
+  })
+})
+
+describe('POST /publish hand-off export', () => {
+  let repoDir: string
+  let cachePath: string
+  let handoffHandle: ReviewServerHandle
+
+  beforeEach(async () => {
+    const parent = mkdtempSync(join(tmpdir(), 'review-workspace-handoff-server-'))
+    repoDir = join(parent, 'target-repo')
+    mkdirSync(repoDir, { recursive: true })
+    cachePath = join(parent, 'repo-paths.json')
+  })
+
+  afterEach(async () => {
+    await handoffHandle?.close()
+  })
+
+  it('writes the hand-off file and gitignores it in the target repo when publishing with an open change-request', async () => {
+    let askedFor: string | undefined
+    handoffHandle = await startReviewServer(workBundle, {
+      askForRepoPath: async (repoSlug) => {
+        askedFor = repoSlug
+        return repoDir
+      },
+      repoPathCachePath: cachePath,
+    })
+
+    await fetch(`http://127.0.0.1:${handoffHandle.port}/questions`, {
+      method: 'POST',
+      headers: { 'x-write-token': handoffHandle.writeToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'please add error handling here', target: { type: 'file', path: 'src/auth/login.ts' }, kind: 'change-request' }),
+    })
+
+    writeFileSync(
+      join(workBundle, 'review.next.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        comparison: { base: 'abc1111', head: 'def2222', repository: 'example/widgets', number: '99' },
+      }),
+    )
+
+    const res = await fetch(`http://127.0.0.1:${handoffHandle.port}/publish`, {
+      method: 'POST',
+      headers: { 'x-write-token': handoffHandle.writeToken },
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.handoff.written).toBe(true)
+
+    expect(askedFor).toBe('example/widgets')
+    const filePath = join(repoDir, '.review-feedback', '99-round1.md')
+    expect(existsSync(filePath)).toBe(true)
+    expect(readFileSync(filePath, 'utf-8')).toContain('please add error handling here')
+    expect(readFileSync(join(repoDir, '.gitignore'), 'utf-8')).toBe('.review-feedback/\n')
+  })
+
+  it('does not write a hand-off file or ask for a repo path when there are no open change-requests', async () => {
+    let askCalled = false
+    handoffHandle = await startReviewServer(workBundle, {
+      askForRepoPath: async () => {
+        askCalled = true
+        return repoDir
+      },
+      repoPathCachePath: cachePath,
+    })
+
+    writeFileSync(
+      join(workBundle, 'review.next.json'),
+      JSON.stringify({ schemaVersion: 1, comparison: { base: 'abc1111', head: 'def2222', repository: 'example/widgets', number: '99' } }),
+    )
+
+    const res = await fetch(`http://127.0.0.1:${handoffHandle.port}/publish`, {
+      method: 'POST',
+      headers: { 'x-write-token': handoffHandle.writeToken },
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.handoff).toEqual({ written: false })
+    expect(askCalled).toBe(false)
+    expect(existsSync(join(repoDir, '.review-feedback'))).toBe(false)
   })
 })

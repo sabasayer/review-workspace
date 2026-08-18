@@ -3,10 +3,12 @@ import { randomBytes } from 'node:crypto'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { validateBundle, type ValidateBundleResult } from '../bundle/validate-bundle.ts'
-import { publishBundle } from '../bundle/publish.ts'
+import { publishBundleAndExportHandoff } from '../bundle/publish-with-handoff.ts'
 import { watchBundle } from './watch-bundle.ts'
 import { raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion } from '../questions/questions-log.ts'
 import type { CommentKind } from '../questions/types.ts'
+import { askForRepoPathOnStdin } from '../handoff/ask-repo-path.ts'
+import type { AskForRepoPath } from '../handoff/repo-path-cache.ts'
 import { readReviewState, writeReviewState } from '../review-state/review-state.ts'
 import type { ReviewState } from '../review-state/types.ts'
 import { render } from '../renderer/render.ts'
@@ -24,6 +26,9 @@ export interface ReviewServerHandle {
 export interface ReviewServerOptions {
   port?: number
   writeToken?: string
+  /** Injectable so tests never hit real stdin; defaults to an interactive prompt for CLI/serve use. */
+  askForRepoPath?: AskForRepoPath
+  repoPathCachePath?: string
 }
 
 export function generateWriteToken(): string {
@@ -91,6 +96,7 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
 
 export function startReviewServer(bundlePath: string, opts: ReviewServerOptions = {}): Promise<ReviewServerHandle> {
   const writeToken = opts.writeToken ?? generateWriteToken()
+  const askForRepoPath = opts.askForRepoPath ?? askForRepoPathOnStdin
 
   // The served document is cached and only refreshed by the watcher below, so a
   // publish must actually trigger re-validation for /document to ever change —
@@ -168,8 +174,9 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
     }
 
     if (req.method === 'POST' && url.pathname === '/publish') {
-      const result = publishBundle(bundlePath)
-      respond(result.ok ? 200 : 422, result)
+      publishBundleAndExportHandoff(bundlePath, { ask: askForRepoPath, repoPathCachePath: opts.repoPathCachePath })
+        .then((result) => respond(result.ok ? 200 : 422, result))
+        .catch((err) => respond(500, { error: err instanceof Error ? err.message : 'publish failed' }))
       return
     }
 
