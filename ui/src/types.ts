@@ -128,7 +128,7 @@ export interface ViewModel {
 
 export type CommentKind = 'question' | 'change-request'
 
-export type ResolutionStatus = 'claimed-addressed' | 'claimed-partial' | 'claimed-not-addressed' | 'target-gone'
+export type ResolutionStatus = 'target-touched' | 'target-partially-touched' | 'target-untouched' | 'target-gone'
 
 export interface Resolution {
   commentId: string

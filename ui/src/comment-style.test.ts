@@ -114,28 +114,28 @@ describe('commentStatusLabel', () => {
 })
 
 describe('resolutionStatusColor', () => {
-  it('is success for claimed-addressed', () => {
-    expect(resolutionStatusColor('claimed-addressed')).toBe('success')
+  it('is success for target-touched', () => {
+    expect(resolutionStatusColor('target-touched')).toBe('success')
   })
 
-  it('is warning for claimed-partial', () => {
-    expect(resolutionStatusColor('claimed-partial')).toBe('warning')
+  it('is warning for target-partially-touched', () => {
+    expect(resolutionStatusColor('target-partially-touched')).toBe('warning')
   })
 
-  it('is neutral for claimed-not-addressed', () => {
-    expect(resolutionStatusColor('claimed-not-addressed')).toBe('neutral')
+  it('is neutral for target-untouched', () => {
+    expect(resolutionStatusColor('target-untouched')).toBe('neutral')
   })
 
-  it('is error for target-gone, reading distinctly from a plain unresolved claim', () => {
+  it('is error for target-gone, reading distinctly from a plain untouched Target', () => {
     expect(resolutionStatusColor('target-gone')).toBe('error')
   })
 })
 
 describe('resolutionStatusLabel', () => {
   it.each([
-    ['claimed-addressed', 'Claimed addressed'],
-    ['claimed-partial', 'Claimed partial'],
-    ['claimed-not-addressed', 'Claimed not addressed'],
+    ['target-touched', 'Touched by new commits'],
+    ['target-partially-touched', 'Partially touched by new commits'],
+    ['target-untouched', 'Not touched by new commits'],
     ['target-gone', 'Target gone'],
   ] as const)('labels %s', (status, label) => {
     expect(resolutionStatusLabel(status)).toBe(label)

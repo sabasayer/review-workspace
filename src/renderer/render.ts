@@ -156,6 +156,12 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
     diagnosticsByPath.set(path, list)
   }
 
+  // Both `chain` below and `collectCarriedReviewContent` read the same chain.json —
+  // `readChain` is cached per bundlePath (see carry-forward.ts) so this is one disk
+  // read either way, but computing it once here keeps that explicit rather than relying
+  // on the cache to paper over an avoidable second call.
+  const chain = readChain(bundlePath)
+
   // Behavioral Groups/Annotations from earlier rounds the incremental patch doesn't
   // touch surface here unchanged (framework.md's "slim rounds") — round N's own
   // document only needs fresh ones for genuinely new material.
@@ -208,7 +214,7 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
 
   return {
     comparison: document.comparison,
-    round: readChain(bundlePath)?.round ?? 1,
+    round: chain?.round ?? 1,
     groups,
     files,
     diagnostics: bundleLevelDiagnostics,

@@ -515,11 +515,11 @@ describe('round-N carry-forward', () => {
     expect(ids).toEqual(expect.arrayContaining(['cr-retry', 'cr-logging', 'cr-legacy']))
   })
 
-  it('GET /questions attaches each carried comment\'s claimed Resolution status', async () => {
+  it('GET /questions attaches each carried comment\'s mechanical Resolution status', async () => {
     const comments = await (await fetch(`${roundBaseUrl()}/questions`)).json()
     const byId = new Map(comments.map((c: { id: string; resolution?: { status: string } }) => [c.id, c.resolution?.status]))
-    expect(byId.get('cr-retry')).toBe('claimed-addressed')
-    expect(byId.get('cr-logging')).toBe('claimed-not-addressed')
+    expect(byId.get('cr-retry')).toBe('target-touched')
+    expect(byId.get('cr-logging')).toBe('target-untouched')
   })
 
   it('surfaces a target-gone carried comment distinctly rather than dropping it', async () => {

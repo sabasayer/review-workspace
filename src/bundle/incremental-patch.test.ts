@@ -43,6 +43,12 @@ describe('incrementalHunks', () => {
     const current: ParsedPatch = { files: [] }
     expect(incrementalHunks(previous, current, 'a.ts')).toEqual([])
   })
+
+  it('never conflates two textually-identical hunks that sit at different positions in the file', () => {
+    const previous: ParsedPatch = { files: [{ path: 'a.ts', binary: false, hunks: [hunkA] }] }
+    const current: ParsedPatch = { files: [{ path: 'a.ts', binary: false, hunks: [hunkAChanged, hunkA] }] }
+    expect(incrementalHunks(previous, current, 'a.ts')).toEqual([hunkAChanged, hunkA])
+  })
 })
 
 describe('incrementalTouchedPaths', () => {

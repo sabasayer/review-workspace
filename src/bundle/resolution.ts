@@ -4,11 +4,14 @@ import type { Comment } from '../questions/types.ts'
 import { resolveTarget } from './resolve-diagnostics.ts'
 import { incrementalHunks } from './incremental-patch.ts'
 
-export type ResolutionStatus = 'claimed-addressed' | 'claimed-partial' | 'claimed-not-addressed' | 'target-gone'
+export type ResolutionStatus = 'target-touched' | 'target-partially-touched' | 'target-untouched' | 'target-gone'
 
 /**
- * Evidence-backed but never authoritative (framework.md, ADR 0002): a claim the engine
- * derives by observing the incremental patch, never a decision. Only the Reviewer's own
+ * Purely mechanical hunk-fingerprint diffing (see `incremental-patch.ts`) — "was this
+ * Target's location touched by the incremental patch", never a judgment about whether a
+ * concern was actually resolved. That kind of evidence-based judgment would require a
+ * Generator reading the diff and reasoning about it (framework.md's Resolution
+ * lifecycle) and is deliberately out of scope here. Only the Reviewer's own
  * `resolveComment` action (from #9) can actually close a change-request Comment.
  */
 export interface Resolution {
@@ -40,10 +43,10 @@ export function evaluateResolution(comment: Comment, previousPatch: ParsedPatch,
     return anyIncrementalChange
       ? {
           commentId: comment.id,
-          status: 'claimed-partial',
+          status: 'target-partially-touched',
           evidence: 'The incremental patch changed other content, but this comment has no Target to correlate against.',
         }
-      : { commentId: comment.id, status: 'claimed-not-addressed', evidence: 'No incremental changes were made in this round.' }
+      : { commentId: comment.id, status: 'target-untouched', evidence: 'No incremental changes were made in this round.' }
   }
 
   const staleDiagnostic = resolveTarget(target, currentPatch)
@@ -60,7 +63,7 @@ export function evaluateResolution(comment: Comment, previousPatch: ParsedPatch,
   if (touchedHunks.length === 0) {
     return {
       commentId: comment.id,
-      status: 'claimed-not-addressed',
+      status: 'target-untouched',
       evidence: `${target.path} has no incremental changes since the previous round.`,
     }
   }
@@ -68,7 +71,7 @@ export function evaluateResolution(comment: Comment, previousPatch: ParsedPatch,
   if (target.type === 'file' || target.type === 'binary') {
     return {
       commentId: comment.id,
-      status: 'claimed-partial',
+      status: 'target-partially-touched',
       evidence: `${touchedHunks.length} hunk(s) changed in ${target.path} since the previous round.`,
     }
   }
@@ -80,12 +83,12 @@ export function evaluateResolution(comment: Comment, previousPatch: ParsedPatch,
   return targetedHunkChanged
     ? {
         commentId: comment.id,
-        status: 'claimed-addressed',
-        evidence: `The hunk containing this comment's Target changed in the incremental patch.`,
+        status: 'target-touched',
+        evidence: `The hunk containing this comment's Target changed in the incremental patch — this is a mechanical signal only, not a judgment that the underlying concern was actually addressed.`,
       }
     : {
         commentId: comment.id,
-        status: 'claimed-partial',
+        status: 'target-partially-touched',
         evidence: `${target.path} changed elsewhere in the incremental patch, but not at this comment's exact Target.`,
       }
 }

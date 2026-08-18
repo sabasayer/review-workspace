@@ -19,20 +19,24 @@ function comment(id: string) {
 }
 
 describe('evaluateResolution', () => {
-  it('claims a comment addressed when the incremental patch changed the hunk containing its Target', () => {
+  it('reports target-touched when the incremental patch changed the hunk containing its Target — a mechanical signal only, not a judgment the concern was actually addressed', () => {
     const resolution = evaluateResolution(comment('cr-retry'), previousPatch, currentPatch)
     expect(resolution).toEqual({
       commentId: 'cr-retry',
-      status: 'claimed-addressed',
+      status: 'target-touched',
       evidence: expect.stringContaining('changed in the incremental patch'),
     })
+    // This is the fixture where round 2's fix adds three unconditional retries with no
+    // backoff at all — the requested change was NOT made. `target-touched` only claims
+    // the hunk changed, never that the concern was resolved; that judgment is out of
+    // scope for this mechanical signal (see resolution.ts).
   })
 
-  it('claims a comment not addressed when its file has no incremental changes', () => {
+  it('reports target-untouched when its file has no incremental changes', () => {
     const resolution = evaluateResolution(comment('cr-logging'), previousPatch, currentPatch)
     expect(resolution).toEqual({
       commentId: 'cr-logging',
-      status: 'claimed-not-addressed',
+      status: 'target-untouched',
       evidence: expect.stringContaining('no incremental changes'),
     })
   })
@@ -43,7 +47,7 @@ describe('evaluateResolution', () => {
     expect(resolution.evidence).toContain('no longer resolves')
   })
 
-  it('claims a comment partially addressed when its file changed elsewhere but not at its exact Target', () => {
+  it('reports target-partially-touched when its file changed elsewhere but not at its exact Target', () => {
     const fileTargetComment = {
       id: 'cr-file',
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -54,10 +58,10 @@ describe('evaluateResolution', () => {
       target: { type: 'file' as const, path: 'src/retry.ts' },
     }
     const resolution = evaluateResolution(fileTargetComment, previousPatch, currentPatch)
-    expect(resolution.status).toBe('claimed-partial')
+    expect(resolution.status).toBe('target-partially-touched')
   })
 
-  it('claims a targetless comment partially addressed when anything changed in the round', () => {
+  it('reports target-partially-touched for a targetless comment when anything changed in the round', () => {
     const untargeted = {
       id: 'cr-untargeted',
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -66,10 +70,10 @@ describe('evaluateResolution', () => {
       status: 'open' as const,
       resolved: false,
     }
-    expect(evaluateResolution(untargeted, previousPatch, currentPatch).status).toBe('claimed-partial')
+    expect(evaluateResolution(untargeted, previousPatch, currentPatch).status).toBe('target-partially-touched')
   })
 
-  it('claims a targetless comment not addressed when nothing changed since the previous round', () => {
+  it('reports target-untouched for a targetless comment when nothing changed since the previous round', () => {
     const untargeted = {
       id: 'cr-untargeted',
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -78,6 +82,6 @@ describe('evaluateResolution', () => {
       status: 'open' as const,
       resolved: false,
     }
-    expect(evaluateResolution(untargeted, previousPatch, previousPatch).status).toBe('claimed-not-addressed')
+    expect(evaluateResolution(untargeted, previousPatch, previousPatch).status).toBe('target-untouched')
   })
 })

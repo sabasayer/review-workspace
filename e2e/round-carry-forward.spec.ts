@@ -39,7 +39,7 @@ test.describe('round-N carry-forward', () => {
     rmSync(workParent, { recursive: true, force: true })
   })
 
-  test('shows carried-forward comments with their claimed status, a distinct target-gone case, and a carried-forward Behavioral Group', async ({
+  test('shows carried-forward comments with their mechanical touched status, a distinct target-gone case, and a carried-forward Behavioral Group', async ({
     page,
   }) => {
     await forceLightMode(page)
@@ -61,8 +61,8 @@ test.describe('round-N carry-forward', () => {
     await expect(dialog.getByText('Please redact PII before logging the message.')).toBeVisible()
     await expect(dialog.getByText('Please delete this dead legacy helper instead of calling it.')).toBeVisible()
 
-    await expect(dialog.getByText('Claimed addressed')).toBeVisible()
-    await expect(dialog.getByText('Claimed not addressed')).toBeVisible()
+    await expect(dialog.getByText('Touched by new commits', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Not touched by new commits')).toBeVisible()
     // Surfaced distinctly, not silently dropped, when its original Target no longer resolves.
     await expect(dialog.getByText('Target gone')).toBeVisible()
 

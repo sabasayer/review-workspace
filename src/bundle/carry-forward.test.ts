@@ -79,11 +79,16 @@ describe('computeCarriedResolutions', () => {
     expect(computeCarriedResolutions(round1)).toEqual([])
   })
 
-  it('evaluates each carried comment and produces the correct claimed status', () => {
+  it('evaluates each carried comment and produces the correct mechanical touched status', () => {
     carryForwardChain(round2)
     const byId = new Map(computeCarriedResolutions(round2).map((c) => [c.comment.id, c.resolution.status]))
-    expect(byId.get('cr-retry')).toBe('claimed-addressed')
-    expect(byId.get('cr-logging')).toBe('claimed-not-addressed')
+    // cr-retry's round-2 fix (fixtures/bundles/chained-mr-100-r2/changes.diff) adds three
+    // unconditional retries with NO backoff at all — the requested change was never made.
+    // `target-touched` only means the hunk containing the Target changed; it is a purely
+    // mechanical hunk-fingerprint signal (resolution.ts), never a judgment that the
+    // underlying concern was actually resolved.
+    expect(byId.get('cr-retry')).toBe('target-touched')
+    expect(byId.get('cr-logging')).toBe('target-untouched')
     expect(byId.get('cr-legacy')).toBe('target-gone')
   })
 })
@@ -113,11 +118,11 @@ describe('collectCommentHistory', () => {
 })
 
 describe('listComments', () => {
-  it('attaches a claimed Resolution only to carried, still-open change-requests', () => {
+  it('attaches a mechanical Resolution only to carried, still-open change-requests', () => {
     carryForwardChain(round2)
     const comments = listComments(round2)
     const retry = comments.find((c) => c.id === 'cr-retry')!
-    expect(retry.resolution?.status).toBe('claimed-addressed')
+    expect(retry.resolution?.status).toBe('target-touched')
   })
 
   it('leaves resolution undefined for a comment resolved in an earlier round', () => {
