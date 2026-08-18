@@ -124,11 +124,16 @@ export interface ViewModel {
   summary?: RenderedSummary
 }
 
+export type CommentKind = 'question' | 'change-request'
+
 export interface Question {
   id: string
   createdAt: string
   body: string
   target?: Target
+  kind: CommentKind
   status: 'open' | 'withdrawn'
   supersededBy?: string
+  resolved: boolean
+  resolvedAt?: string
 }

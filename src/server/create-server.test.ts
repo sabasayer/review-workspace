@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -155,6 +155,151 @@ describe('startReviewServer', () => {
     const list = await (await fetch(`${baseUrl()}/questions`)).json()
     expect(list.find((q: { id: string }) => q.id === created.id).status).toBe('withdrawn')
     expect(list.find((q: { status: string }) => q.status === 'open').body).toBe('better phrased')
+  })
+
+  it('raises a change-request Comment via the API, round-tripping kind', async () => {
+    const created = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'please add a regression test', target: { type: 'file', path: 'src/auth/login.ts' }, kind: 'change-request' }),
+    })
+    expect(created.status).toBe(201)
+    const comment = await created.json()
+    expect(comment.kind).toBe('change-request')
+    expect(comment.resolved).toBe(false)
+
+    const list = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(list.find((c: { id: string }) => c.id === comment.id).kind).toBe('change-request')
+  })
+
+  it('defaults kind to question when omitted, preserving old-client behavior', async () => {
+    const created = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'why is this rate limited?' }),
+    })
+    const comment = await created.json()
+    expect(comment.kind).toBe('question')
+  })
+
+  it('rejects an unrecognized kind value', async () => {
+    const res = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'text', kind: 'bug-report' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('resolves a change-request Comment via POST /questions/:id/resolve, gated behind the write token', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'please fix this', kind: 'change-request' }),
+      })
+    ).json()
+
+    const unauthorized = await fetch(`${baseUrl()}/questions/${created.id}/resolve`, { method: 'POST' })
+    expect(unauthorized.status).toBe(401)
+
+    const resolveRes = await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+    expect(resolveRes.status).toBe(200)
+    const resolved = await resolveRes.json()
+    expect(resolved.resolved).toBe(true)
+    expect(resolved.resolvedAt).toBeTruthy()
+
+    const list = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(list.find((c: { id: string }) => c.id === created.id).resolved).toBe(true)
+  })
+
+  it('404s resolving a Comment id that does not exist, without writing anything to the log', async () => {
+    const logPath = join(workBundle, 'questions.jsonl')
+    const before = existsSync(logPath) ? readFileSync(logPath, 'utf-8') : ''
+
+    const res = await fetch(`${baseUrl()}/questions/does-not-exist/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    expect(res.status).toBe(404)
+    expect(existsSync(logPath) ? readFileSync(logPath, 'utf-8') : '').toBe(before)
+  })
+
+  it('rejects resolving a question-kind Comment with a non-200 status, without writing anything to the log', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'why is this rate limited?' }),
+      })
+    ).json()
+
+    const logPath = join(workBundle, 'questions.jsonl')
+    const before = readFileSync(logPath, 'utf-8')
+
+    const res = await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    expect(res.status).not.toBe(200)
+    expect(res.status).toBeLessThan(500)
+
+    expect(readFileSync(logPath, 'utf-8')).toBe(before)
+    const list = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(list.find((c: { id: string }) => c.id === created.id).resolved).toBe(false)
+  })
+
+  it('rejects resolving an already-resolved change-request with a non-200 status, without writing again to the log', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'please fix this', kind: 'change-request' }),
+      })
+    ).json()
+
+    await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    const logPath = join(workBundle, 'questions.jsonl')
+    const before = readFileSync(logPath, 'utf-8')
+
+    const res = await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    expect(res.status).not.toBe(200)
+    expect(res.status).toBeLessThan(500)
+    expect(readFileSync(logPath, 'utf-8')).toBe(before)
+  })
+
+  it('resolving a Comment never touches review.next.json or any Generator-owned file', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'please fix this', kind: 'change-request' }),
+      })
+    ).json()
+
+    const reviewJsonBefore = readFileSync(join(workBundle, 'review.json'), 'utf-8')
+    const nextPath = join(workBundle, 'review.next.json')
+
+    await fetch(`${baseUrl()}/questions/${created.id}/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken },
+    })
+
+    expect(readFileSync(join(workBundle, 'review.json'), 'utf-8')).toBe(reviewJsonBefore)
+    expect(existsSync(nextPath)).toBe(false)
   })
 
   it('reads and writes Review State, gating writes behind the write token', async () => {

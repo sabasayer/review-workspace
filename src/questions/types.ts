@@ -5,6 +5,7 @@ export type CommentKind = 'question' | 'change-request'
 export type CommentLogEntry =
   | { type: 'raised'; id: string; createdAt: string; body: string; target?: Target; kind?: CommentKind }
   | { type: 'withdrawn'; id: string; createdAt: string; questionId: string; replacementId?: string }
+  | { type: 'resolved'; id: string; createdAt: string; commentId: string }
 
 export interface Comment {
   id: string
@@ -14,4 +15,6 @@ export interface Comment {
   kind: CommentKind
   status: 'open' | 'withdrawn'
   supersededBy?: string
+  resolved: boolean
+  resolvedAt?: string
 }

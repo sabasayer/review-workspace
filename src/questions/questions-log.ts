@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { Target } from '../schema/types.ts'
-import type { Comment, CommentLogEntry } from './types.ts'
+import type { Comment, CommentKind, CommentLogEntry } from './types.ts'
 
 // File name predates the Comment/kind split (it only ever held Questions) — kept
 // as-is so bundles created before this change keep reading correctly; only the
@@ -25,18 +25,26 @@ function appendEntry(bundlePath: string, entry: CommentLogEntry): void {
   appendFileSync(logPath(bundlePath), JSON.stringify(entry) + '\n')
 }
 
-/** Raises a new, immutable question Comment. Never mutates or removes any existing log entry. */
-export function raiseQuestion(bundlePath: string, body: string, target?: Target): Comment {
+/** Raises a new, immutable Comment. Never mutates or removes any existing log entry. */
+export function raiseQuestion(bundlePath: string, body: string, target?: Target, kind: CommentKind = 'question'): Comment {
   const entry: CommentLogEntry = {
     type: 'raised',
     id: randomUUID(),
     createdAt: new Date().toISOString(),
     body,
     target,
-    kind: 'question',
+    kind,
   }
   appendEntry(bundlePath, entry)
-  return { id: entry.id, createdAt: entry.createdAt, body: entry.body, target: entry.target, kind: 'question', status: 'open' }
+  return {
+    id: entry.id,
+    createdAt: entry.createdAt,
+    body: entry.body,
+    target: entry.target,
+    kind,
+    status: 'open',
+    resolved: false,
+  }
 }
 
 /**
@@ -75,7 +83,43 @@ export function withdrawAndReplaceQuestion(
       target: replacement.target,
       kind: 'question',
       status: 'open',
+      resolved: false,
     },
+  }
+}
+
+export type ResolveCommentResult =
+  | { outcome: 'resolved'; comment: Comment }
+  | { outcome: 'not-found' }
+  | { outcome: 'not-resolvable'; comment: Comment }
+
+function isOpenChangeRequest(comment: Comment): boolean {
+  return comment.kind === 'change-request' && comment.status === 'open' && !comment.resolved
+}
+
+/**
+ * Marks an open change-request Comment resolved. This is a human-only, reviewer-triggered
+ * action recorded in the same append-only log — nothing a Generator writes (the
+ * Review Document, `review.next.json`) can ever produce this entry.
+ *
+ * Validates before writing: a Comment that doesn't exist, or isn't currently an open
+ * change-request, is rejected without appending anything to the log.
+ */
+export function resolveComment(bundlePath: string, commentId: string): ResolveCommentResult {
+  const comment = readQuestions(bundlePath).find((c) => c.id === commentId)
+  if (!comment) return { outcome: 'not-found' }
+  if (!isOpenChangeRequest(comment)) return { outcome: 'not-resolvable', comment }
+
+  const entry: CommentLogEntry = {
+    type: 'resolved',
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    commentId,
+  }
+  appendEntry(bundlePath, entry)
+  return {
+    outcome: 'resolved',
+    comment: { ...comment, resolved: true, resolvedAt: entry.createdAt },
   }
 }
 
@@ -91,12 +135,19 @@ export function readQuestions(bundlePath: string): Comment[] {
         target: entry.target,
         kind: entry.kind ?? 'question',
         status: 'open',
+        resolved: false,
       })
-    } else {
+    } else if (entry.type === 'withdrawn') {
       const comment = comments.get(entry.questionId)
       if (comment) {
         comment.status = 'withdrawn'
         comment.supersededBy = entry.replacementId
+      }
+    } else {
+      const comment = comments.get(entry.commentId)
+      if (comment && comment.kind === 'change-request') {
+        comment.resolved = true
+        comment.resolvedAt = entry.createdAt
       }
     }
   }
