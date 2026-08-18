@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
 import { validateBundle } from './bundle/validate-bundle.ts'
-import { publishBundle } from './bundle/publish.ts'
+import { publishBundleAndExportHandoff } from './bundle/publish-with-handoff.ts'
 import { checkRound, scaffoldNextRound } from './bundle/round.ts'
+import { askForRepoPathOnStdin } from './handoff/ask-repo-path.ts'
 import { startReviewServer } from './server/create-server.ts'
 
 const [, , command, bundlePath, ...rest] = process.argv
@@ -31,11 +32,14 @@ if (command === 'open') {
     console.log(`${result.diagnostics.length} diagnostic(s) found.`)
   }
 } else if (command === 'publish') {
-  const result = publishBundle(bundlePath)
+  const result = await publishBundleAndExportHandoff(bundlePath, { ask: askForRepoPathOnStdin })
   if (!result.ok) {
     fail(`Publish rejected: ${result.blockingReason} — ${result.message}`)
   }
   console.log('Published.')
+  if (result.handoff?.written) {
+    console.log(`Hand-off file written: ${result.handoff.filePath}`)
+  }
 } else if (command === 'round') {
   const liveHead = flagValue('--live-head')
   const patchPath = flagValue('--patch')
