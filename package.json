@@ -1,6 +1,6 @@
 {
   "name": "review-workspace",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "A local, offline decision surface for reviewing a code Comparison — evidence-linked map of intent, behavior, risk, and observable effects.",
   "license": "MIT",
   "author": "Salih Sayer",

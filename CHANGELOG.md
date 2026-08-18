@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/sabasayer/review-workspace/compare/v1.6.0...v1.7.0) (2026-08-18)
+
+
+### Features
+
+* ship address-review-feedback consumer skill for hand-off file ([430fcbe](https://github.com/sabasayer/review-workspace/commit/430fcbe3233cfc5a51f52fc6fd9599c9a6476ed5)), closes [#18](https://github.com/sabasayer/review-workspace/issues/18) [#18](https://github.com/sabasayer/review-workspace/issues/18)
+
 # [1.6.0](https://github.com/sabasayer/review-workspace/compare/v1.5.0...v1.6.0) (2026-08-18)
 
 
