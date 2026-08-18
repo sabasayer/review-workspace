@@ -1,3 +1,15 @@
+# [1.4.0](https://github.com/sabasayer/review-workspace/compare/v1.3.0...v1.4.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* validate change-request resolution before writing to the log ([#9](https://github.com/sabasayer/review-workspace/issues/9)) ([090dea6](https://github.com/sabasayer/review-workspace/commit/090dea69203fe7c95bc43065e44ea84eac0fc4d2))
+
+
+### Features
+
+* raise, display, and manually resolve change-request comments ([#9](https://github.com/sabasayer/review-workspace/issues/9)) ([c22eed2](https://github.com/sabasayer/review-workspace/commit/c22eed292445fbee0eacfb5e9b570dcc16b29d7f)), closes [#7](https://github.com/sabasayer/review-workspace/issues/7)
+
 # [1.3.0](https://github.com/sabasayer/review-workspace/compare/v1.2.0...v1.3.0) (2026-08-17)
 
 
