@@ -6,11 +6,13 @@ import {
   commentKindLabel,
   commentStatusColor,
   commentStatusLabel,
+  resolutionStatusColor,
+  resolutionStatusLabel,
 } from './comment-style.ts'
 import type { Question } from './types.ts'
 
 function comment(overrides: Partial<Question>): Question {
-  return { id: 'c1', createdAt: 't', body: 'body', kind: 'question', status: 'open', resolved: false, ...overrides }
+  return { id: 'c1', createdAt: 't', body: 'body', kind: 'question', status: 'open', resolved: false, originRound: 1, ...overrides }
 }
 
 describe('commentGlyph', () => {
@@ -108,5 +110,34 @@ describe('commentStatusLabel', () => {
 
   it('prefers Resolved over Answered when both are true', () => {
     expect(commentStatusLabel(comment({ kind: 'change-request', status: 'open', resolved: true }), true)).toBe('Resolved')
+  })
+})
+
+describe('resolutionStatusColor', () => {
+  it('is success for claimed-addressed', () => {
+    expect(resolutionStatusColor('claimed-addressed')).toBe('success')
+  })
+
+  it('is warning for claimed-partial', () => {
+    expect(resolutionStatusColor('claimed-partial')).toBe('warning')
+  })
+
+  it('is neutral for claimed-not-addressed', () => {
+    expect(resolutionStatusColor('claimed-not-addressed')).toBe('neutral')
+  })
+
+  it('is error for target-gone, reading distinctly from a plain unresolved claim', () => {
+    expect(resolutionStatusColor('target-gone')).toBe('error')
+  })
+})
+
+describe('resolutionStatusLabel', () => {
+  it.each([
+    ['claimed-addressed', 'Claimed addressed'],
+    ['claimed-partial', 'Claimed partial'],
+    ['claimed-not-addressed', 'Claimed not addressed'],
+    ['target-gone', 'Target gone'],
+  ] as const)('labels %s', (status, label) => {
+    expect(resolutionStatusLabel(status)).toBe(label)
   })
 })

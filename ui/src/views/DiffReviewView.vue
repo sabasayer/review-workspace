@@ -93,7 +93,12 @@ async function onQuestionSelect(entry: (typeof questionEntries.value)[number]) {
       :description-html="descriptionHtml"
     />
 
-    <QuestionsSlideover v-model:open="questionsOpen" :entries="questionEntries" @select="onQuestionSelect" />
+    <QuestionsSlideover
+      v-model:open="questionsOpen"
+      :entries="questionEntries"
+      :current-round="viewModel?.round ?? 1"
+      @select="onQuestionSelect"
+    />
 
     <div v-if="error" class="p-4 text-error">Failed to load bundle: {{ error }}</div>
     <div v-else-if="!viewModel" class="p-4 text-muted">Loading…</div>

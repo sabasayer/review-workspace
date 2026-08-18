@@ -1,0 +1,25 @@
+diff --git a/src/retry.ts b/src/retry.ts
+index aaa1111..bbb2222 100644
+--- a/src/retry.ts
++++ b/src/retry.ts
+@@ -1,3 +1,4 @@
+ export function callApi() {
++  attempt()
+   return fetch('/api')
+ }
+diff --git a/src/logging.ts b/src/logging.ts
+index aaa1112..bbb2223 100644
+--- a/src/logging.ts
++++ b/src/logging.ts
+@@ -1,2 +1,3 @@
+ export function log(msg: string) {
++  console.log(msg)
+ }
+diff --git a/src/legacy.ts b/src/legacy.ts
+index aaa1113..bbb2224 100644
+--- a/src/legacy.ts
++++ b/src/legacy.ts
+@@ -1,2 +1,3 @@
+ export function legacy() {
++  doOldThing()
+ }

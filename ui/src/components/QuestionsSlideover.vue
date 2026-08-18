@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import type { QuestionEntry } from '../question-entries.ts'
 import { useCollapsedComments } from '../composables/useCollapsedComments.ts'
-import { commentKindColor, commentKindLabel, commentStatusColor, commentStatusLabel } from '../comment-style.ts'
+import {
+  commentKindColor,
+  commentKindLabel,
+  commentStatusColor,
+  commentStatusLabel,
+  resolutionStatusColor,
+  resolutionStatusLabel,
+} from '../comment-style.ts'
 
-defineProps<{ entries: QuestionEntry[] }>()
+defineProps<{ entries: QuestionEntry[]; currentRound: number }>()
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ select: [entry: QuestionEntry] }>()
 
@@ -26,6 +33,18 @@ function isCollapsed(entry: QuestionEntry): boolean {
             </UBadge>
             <UBadge size="sm" variant="subtle" :color="commentStatusColor(entry.question, !!entry.answer)">
               {{ commentStatusLabel(entry.question, !!entry.answer) }}
+            </UBadge>
+            <UBadge
+              v-if="entry.question.resolution"
+              size="sm"
+              variant="subtle"
+              :color="resolutionStatusColor(entry.question.resolution.status)"
+              :title="entry.question.resolution.evidence"
+            >
+              {{ resolutionStatusLabel(entry.question.resolution.status) }}
+            </UBadge>
+            <UBadge v-if="entry.question.originRound !== currentRound" size="sm" variant="outline" color="neutral">
+              Round {{ entry.question.originRound }}
             </UBadge>
             <span v-if="entry.filePath" class="truncate font-mono text-xs text-muted">{{ entry.filePath }}</span>
             <UButton

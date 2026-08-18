@@ -3,7 +3,16 @@ import { computed } from 'vue'
 import type { Answer, CommentKind, Question, Target } from '../types.ts'
 import { useQuestionThread } from '../composables/useQuestionThread.ts'
 import { useCollapsedComments } from '../composables/useCollapsedComments.ts'
-import { commentBadgeClasses, commentGlyph, commentKindColor, commentKindLabel, commentStatusColor, commentStatusLabel } from '../comment-style.ts'
+import {
+  commentBadgeClasses,
+  commentGlyph,
+  commentKindColor,
+  commentKindLabel,
+  commentStatusColor,
+  commentStatusLabel,
+  resolutionStatusColor,
+  resolutionStatusLabel,
+} from '../comment-style.ts'
 
 const props = defineProps<{ target?: Target; questions: readonly Question[]; answers: readonly Answer[] }>()
 
@@ -55,6 +64,15 @@ const kindOptions: Array<{ value: CommentKind; label: string }> = [
             <UBadge size="sm" variant="subtle" :color="commentStatusColor(q)">
               {{ commentStatusLabel(q) }}
             </UBadge>
+            <UBadge
+              v-if="q.resolution"
+              size="sm"
+              variant="subtle"
+              :color="resolutionStatusColor(q.resolution.status)"
+              :title="q.resolution.evidence"
+            >
+              {{ resolutionStatusLabel(q.resolution.status) }}
+            </UBadge>
             <UButton v-if="q.resolved" size="xs" variant="ghost" class="ml-auto" @click="toggleExpanded(q.id)">
               {{ isCollapsed(q) ? 'Show' : 'Hide' }}
             </UButton>
@@ -62,6 +80,7 @@ const kindOptions: Array<{ value: CommentKind; label: string }> = [
 
           <template v-if="!isCollapsed(q)">
             <p class="mb-2 leading-relaxed">{{ q.body }}</p>
+            <p v-if="q.resolution" class="mb-2 text-muted">{{ q.resolution.evidence }}</p>
             <template v-if="q.kind === 'question'">
               <p v-if="answerFor(q.id)" class="mb-1 text-[10px] font-bold text-muted">Answer</p>
               <p v-if="answerFor(q.id)" class="mb-2 leading-relaxed text-muted">{{ answerFor(q.id)!.body }}</p>

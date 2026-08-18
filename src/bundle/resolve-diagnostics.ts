@@ -28,7 +28,8 @@ function checkAssetPath(bundlePath: string, assetPath: string, limits: BundleLim
   return undefined
 }
 
-function resolveTarget(target: Target, patch: ParsedPatch): Diagnostic | undefined {
+/** Resolves a Target against a patch, returning the Diagnostic that explains why it's unresolved/stale, or undefined when it resolves cleanly. */
+export function resolveTarget(target: Target, patch: ParsedPatch): Diagnostic | undefined {
   const file = findFile(patch, target.path)
 
   if (target.type === 'file') {

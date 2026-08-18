@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion } from './questions-log.ts'
+import { carryForwardComment, raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion } from './questions-log.ts'
 
 let dir: string
 
@@ -129,5 +129,58 @@ describe('questions log', () => {
     resolveComment(dir, c.id)
     const after = readFileSync(join(dir, 'questions.jsonl'), 'utf-8')
     expect(after.startsWith(before)).toBe(true)
+  })
+
+  describe('carryForwardComment', () => {
+    it('appends a comment from another bundle preserving its id, body, target, kind, and createdAt', () => {
+      const original = {
+        id: 'cr-carried',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        body: 'please add a test',
+        kind: 'change-request' as const,
+        status: 'open' as const,
+        resolved: false,
+        target: { type: 'file' as const, path: 'src/a.ts' },
+      }
+      carryForwardComment(dir, original)
+      const [carried] = readQuestions(dir)
+      expect(carried.id).toBe(original.id)
+      expect(carried.createdAt).toBe(original.createdAt)
+      expect(carried.body).toBe(original.body)
+      expect(carried.target).toEqual(original.target)
+      expect(carried.kind).toBe('change-request')
+      expect(carried.status).toBe('open')
+      expect(carried.resolved).toBe(false)
+    })
+
+    it('is idempotent — calling it twice for the same id appends nothing the second time', () => {
+      const original = {
+        id: 'cr-carried',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        body: 'please add a test',
+        kind: 'change-request' as const,
+        status: 'open' as const,
+        resolved: false,
+      }
+      carryForwardComment(dir, original)
+      const before = readFileSync(join(dir, 'questions.jsonl'), 'utf-8')
+      carryForwardComment(dir, original)
+      expect(readFileSync(join(dir, 'questions.jsonl'), 'utf-8')).toBe(before)
+    })
+
+    it('does not reset an already-resolved carried comment back to open when called again', () => {
+      const original = {
+        id: 'cr-carried',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        body: 'please add a test',
+        kind: 'change-request' as const,
+        status: 'open' as const,
+        resolved: false,
+      }
+      carryForwardComment(dir, original)
+      resolveComment(dir, original.id)
+      carryForwardComment(dir, original)
+      expect(readQuestions(dir).find((c) => c.id === original.id)?.resolved).toBe(true)
+    })
   })
 })

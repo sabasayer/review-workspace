@@ -4,6 +4,7 @@ import { validateBundle } from './bundle/validate-bundle.ts'
 import { publishBundleAndExportHandoff } from './bundle/publish-with-handoff.ts'
 import { checkRound, scaffoldNextRound } from './bundle/round.ts'
 import { askForRepoPathOnStdin } from './handoff/ask-repo-path.ts'
+import { carryForwardChain } from './bundle/carry-forward.ts'
 import { startReviewServer } from './server/create-server.ts'
 
 const [, , command, bundlePath, ...rest] = process.argv
@@ -23,6 +24,7 @@ if (!command || !bundlePath) {
 }
 
 if (command === 'open') {
+  carryForwardChain(bundlePath)
   const result = validateBundle(bundlePath)
   if (!result.valid) {
     fail(`Cannot open bundle: ${result.blockingReason} — ${result.message}`)

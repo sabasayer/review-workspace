@@ -1,4 +1,4 @@
-import type { Question } from './types.ts'
+import type { Question, ResolutionStatus } from './types.ts'
 
 /**
  * Shared visual language for Comment badges: a Question uses "?" in info blue, a
@@ -48,4 +48,29 @@ export function commentStatusLabel(comment: Question, hasAnswer = false): string
   if (comment.resolved) return 'Resolved'
   if (hasAnswer) return 'Answered'
   return comment.status === 'open' ? 'Open' : 'Withdrawn'
+}
+
+/**
+ * A Resolution is evidence-backed but never authoritative (framework.md) — `target-gone`
+ * reads as warning/distinct from the neutral "not addressed" case, since it means the
+ * reviewer's original Target is no longer where they left it, not just unresolved.
+ */
+export function resolutionStatusColor(status: ResolutionStatus): 'success' | 'warning' | 'error' | 'neutral' {
+  if (status === 'claimed-addressed') return 'success'
+  if (status === 'claimed-partial') return 'warning'
+  if (status === 'target-gone') return 'error'
+  return 'neutral'
+}
+
+export function resolutionStatusLabel(status: ResolutionStatus): string {
+  switch (status) {
+    case 'claimed-addressed':
+      return 'Claimed addressed'
+    case 'claimed-partial':
+      return 'Claimed partial'
+    case 'claimed-not-addressed':
+      return 'Claimed not addressed'
+    case 'target-gone':
+      return 'Target gone'
+  }
 }
