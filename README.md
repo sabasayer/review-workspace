@@ -32,6 +32,20 @@ npx review-workspace serve .bundles/<name> --port 4317
 
 Opens the UI at `http://127.0.0.1:4317` (prints a write token too — needed only to raise/answer Questions, not to view). One process, no separate dev server.
 
+## Addressing review feedback in the target repo
+
+When a bundle has open change-request Comments, publishing it exports a self-describing hand-off file (`.review-feedback/<mr-number>-round<N>.md`) into the *target* repo's own working tree. A second skill, `skills/address-review-feedback/`, reads that file there, implements or explicitly skips each change-request against the target repo's own conventions, runs the target repo's own verification, writes a structured response file next to the hand-off file, and commits and pushes — then asks whether to spawn a background `review-workspace` agent for the next round.
+
+It installs the same way as the Generator skill above — no separate step:
+
+```sh
+npx skills add sabasayer/review-workspace --global --agent claude-code -y
+```
+
+(`npx skills add`/`update sabasayer/review-workspace` installs every directory under `skills/`, so this second skill comes along with the Generator.)
+
+**Use it**: in the target repo, ask Claude Code to address the review feedback, e.g. "Address the review feedback using the address-review-feedback skill" — with or without pointing at a specific `.review-feedback/*.md` path; it finds the latest unaddressed one on its own otherwise.
+
 ## Development
 
 ```sh
