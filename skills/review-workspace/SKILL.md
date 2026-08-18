@@ -40,15 +40,15 @@ For an **existing** bundle someone's already reviewing (Questions raised, feedba
 
 ## Generate
 
-1. Acquire or read the Comparison's complete Unified Patch and any available evidence (issue/MR description, discussions, pipeline results, base/head image blobs, open Questions in `questions.jsonl`).
+1. Acquire or read the Comparison's complete Unified Patch and any available evidence (issue/MR description, discussions, pipeline results, base/head image blobs, open Comments — questions and change-requests alike — in `questions.jsonl`).
 2. Build Behavioral Groups: cluster changed files by behavior, assign `risk`, and order them for review (foundational/highest-risk first).
 3. Write Annotations at decision-relevant Targets (File/Hunk/Line/Binary) — Line Targets must carry `expectedText` copied exactly from the patch, or the validator will flag them stale.
 4. Write Evidence, classified `observed` / `author-claim` / `inference`.
 5. Write Verification items, honestly `unverified` unless real proof already exists.
-6. Answer any `open` Questions from `questions.jsonl` (one Answer per Question, citing Evidence where applicable).
+6. Answer any `open` Comments of `kind: 'question'` from `questions.jsonl` (one Answer per Question, citing Evidence where applicable). Leave `kind: 'change-request'` entries alone — see [FRAMEWORK.md](FRAMEWORK.md)'s non-negotiable #5.
 7. Write a brief `summary` (a sentence or two, plus the most important Annotation/file pointers) so a reviewer can scan intent before the full diff — skip it for a trivial change.
 8. Save the result as `review.next.json` in the bundle directory.
-9. Run `npx review-workspace publish <bundle>` and report the outcome, including any Diagnostics.
+9. Run `npx review-workspace publish <bundle>` and report the outcome, including any Diagnostics. If the bundle has open change-request Comments, this also exports them as a hand-off file into the *target repo's* own working tree (not the bundle directory) — see "Hand-off export" below. The first time this happens for a repo it doesn't already have a cached local path for, it prompts on stdin for that path; answer it if you're the one driving the CLI, or pass it on to the user immediately if you're not.
 
 Generation is complete when `publish` succeeds and every source file/hunk in the patch is covered by at least a File-level Target (a Behavioral Group or Annotation), per the framework's validation contract.
 
@@ -58,10 +58,18 @@ Generation is complete when `publish` succeeds and every source file/hunk in the
 2. Identify whether the feedback is:
    - **Artifact-specific** — fix `review.next.json` for this bundle only.
    - **Durable product learning** — update `FRAMEWORK.md`, replacing superseded guidance instead of appending contradictory rules.
-3. Write the smallest coherent `review.next.json` update and `publish` again.
+3. Write the smallest coherent `review.next.json` update and `publish` again — this re-triggers the hand-off export in "Hand-off export" below exactly as a first-time publish would, if open change-request Comments exist.
 4. Re-run the validation contract from `FRAMEWORK.md`.
 
 Improvement is complete when the concern is resolved without weakening any non-negotiable decision, or the framework explicitly records the newly agreed replacement.
+
+## Hand-off export
+
+A `publish` (Generate step 9 or Improve step 3) that succeeds on a bundle with at least one open `kind: 'change-request'` Comment writes `.review-feedback/<mr-number>-round<N>.md` into the *target repo's* own local working tree — a different filesystem location than the bundle you've been working in, containing those comments raw (grouped by file, with their Targets) for a separate implementer-side skill to act on later. This is a no-op when there are no open change-requests.
+
+The first time this happens for a given repo, it needs that repo's local checkout path and asks for it on stdin (`Local checkout path for <repo-slug>: `); the answer is cached in `~/.claude/review-workspace-repo-paths.json` and reused silently for that repo afterward (re-asked only if the cached path no longer exists on disk). It also ensures `.review-feedback/` is listed in that repo's `.gitignore`.
+
+Always report back where this landed — see "Report back" below.
 
 ## Evidence discipline
 
@@ -70,7 +78,9 @@ Improvement is complete when the concern is resolved without weakening any non-n
 - Mark unavailable pipeline, issue, discussion, test, media, or runtime evidence as a gap rather than omitting it silently.
 - Never decide approve/request-changes — that's the Reviewer's call, recorded in the app-owned Review State, not something you write.
 
-## Handoff
+## Report back
+
+(Not to be confused with the "hand-off export" above — this is what you tell the *user*, not the file exported to another repo.)
 
 Report:
 
@@ -78,6 +88,7 @@ Report:
 - Comparison identity reviewed (base/head)
 - File, hunk, addition, and deletion reconciliation against the patch
 - Evidence or media gaps
-- Any Questions answered
+- Any Questions answered — and, separately, how many open change-requests exist (never claim one was addressed; that's not yours to say)
+- If a hand-off file was exported: its path in the target repo, which repo local-path was used (freshly asked or from cache), and the round number
 - Any framework decision added or changed
-- If served: the URL, the write token, and what the token is for (raising/answering Questions) — always share it, never withhold it as an implementation detail
+- If served: the URL, the write token, and what the token is for (raising/answering Questions, or raising a change-request) — always share it, never withhold it as an implementation detail
