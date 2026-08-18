@@ -16,8 +16,26 @@ function targetPath(target: Target): string {
   return target.path
 }
 
+function targetKey(target: Target): string {
+  switch (target.type) {
+    case 'file':
+      return `file:${target.path}`
+    case 'binary':
+      return `binary:${target.path}`
+    case 'hunk':
+      return `hunk:${target.path}:${target.hunkIndex}`
+    case 'line':
+      return `line:${target.path}:${target.side}:${target.line}`
+  }
+}
+
+// Same-type-same-Target only: a file-level comment does not pick up
+// hunk-level Annotations on that file (or vice versa). Cross-granularity
+// matching is a coarser question ("does this Annotation touch material this
+// comment also concerns?") that issue #10 doesn't ask for — it wants the
+// Annotation the comment was raised against, i.e. the same Target.
 function targetsEqual(a: Target, b: Target): boolean {
-  return JSON.stringify(a) === JSON.stringify(b)
+  return targetKey(a) === targetKey(b)
 }
 
 function describeTarget(target: Target): string {

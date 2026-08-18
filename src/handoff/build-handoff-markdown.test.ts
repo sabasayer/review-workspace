@@ -176,4 +176,169 @@ describe('buildHandoffMarkdown', () => {
       ].join('\n'),
     )
   })
+
+  it('attaches related Annotation context for a same-Target match on every Target type', () => {
+    const comments: Comment[] = [
+      {
+        id: 'cr-file',
+        createdAt: '2026-08-01T09:00:00.000Z',
+        body: 'File comment.',
+        target: { type: 'file', path: 'src/a.ts' },
+        kind: 'change-request',
+        status: 'open',
+        resolved: false,
+      },
+      {
+        id: 'cr-hunk',
+        createdAt: '2026-08-01T09:01:00.000Z',
+        body: 'Hunk comment.',
+        target: { type: 'hunk', path: 'src/b.ts', hunkIndex: 3 },
+        kind: 'change-request',
+        status: 'open',
+        resolved: false,
+      },
+      {
+        id: 'cr-line',
+        createdAt: '2026-08-01T09:02:00.000Z',
+        body: 'Line comment.',
+        target: { type: 'line', side: 'base', line: 7, expectedText: 'return x', path: 'src/c.ts' },
+        kind: 'change-request',
+        status: 'open',
+        resolved: false,
+      },
+      {
+        id: 'cr-binary',
+        createdAt: '2026-08-01T09:03:00.000Z',
+        body: 'Binary comment.',
+        target: { type: 'binary', path: 'src/d.png' },
+        kind: 'change-request',
+        status: 'open',
+        resolved: false,
+      },
+    ]
+
+    const annotations: Annotation[] = [
+      { id: 'an-file', target: { type: 'file', path: 'src/a.ts' }, summary: 'File Annotation.' },
+      { id: 'an-hunk', target: { type: 'hunk', path: 'src/b.ts', hunkIndex: 3 }, summary: 'Hunk Annotation.' },
+      {
+        id: 'an-line',
+        target: { type: 'line', side: 'base', line: 7, expectedText: 'return x', path: 'src/c.ts' },
+        summary: 'Line Annotation.',
+      },
+      { id: 'an-binary', target: { type: 'binary', path: 'src/d.png' }, summary: 'Binary Annotation.' },
+    ]
+
+    const markdown = buildHandoffMarkdown({
+      bundlePath: 'fixtures/bundles/valid',
+      comparison,
+      round: 3,
+      comments,
+      annotations,
+    })
+
+    expect(markdown).toBe(
+      [
+        '# Change requests — round 3',
+        '',
+        '<!--',
+        'review-workspace-handoff',
+        `bundlePath: ${resolve('fixtures/bundles/valid')}`,
+        'repository: example/widgets',
+        'mrNumber: 42',
+        'round: 3',
+        '-->',
+        '',
+        '## src/a.ts',
+        '',
+        '### File: src/a.ts',
+        '',
+        'File comment.',
+        '',
+        '**Annotation (note):** File Annotation.',
+        '',
+        '---',
+        '',
+        '## src/b.ts',
+        '',
+        '### Hunk #3 in src/b.ts',
+        '',
+        'Hunk comment.',
+        '',
+        '**Annotation (note):** Hunk Annotation.',
+        '',
+        '---',
+        '',
+        '## src/c.ts',
+        '',
+        '### Line 7 (base) in src/c.ts',
+        '> return x',
+        '',
+        'Line comment.',
+        '',
+        '**Annotation (note):** Line Annotation.',
+        '',
+        '---',
+        '',
+        '## src/d.png',
+        '',
+        '### Binary change: src/d.png',
+        '',
+        'Binary comment.',
+        '',
+        '**Annotation (note):** Binary Annotation.',
+        '',
+        '---',
+        '',
+      ].join('\n'),
+    )
+  })
+
+  it('does not attach a hunk-level Annotation to a file-level comment on the same file — cross-granularity matching is out of scope', () => {
+    const comments: Comment[] = [
+      {
+        id: 'cr-file',
+        createdAt: '2026-08-01T09:00:00.000Z',
+        body: 'File comment.',
+        target: { type: 'file', path: 'src/a.ts' },
+        kind: 'change-request',
+        status: 'open',
+        resolved: false,
+      },
+    ]
+
+    const annotations: Annotation[] = [
+      { id: 'an-hunk', target: { type: 'hunk', path: 'src/a.ts', hunkIndex: 0 }, summary: 'Hunk Annotation on same file.' },
+    ]
+
+    const markdown = buildHandoffMarkdown({
+      bundlePath: 'fixtures/bundles/valid',
+      comparison,
+      round: 4,
+      comments,
+      annotations,
+    })
+
+    expect(markdown).toBe(
+      [
+        '# Change requests — round 4',
+        '',
+        '<!--',
+        'review-workspace-handoff',
+        `bundlePath: ${resolve('fixtures/bundles/valid')}`,
+        'repository: example/widgets',
+        'mrNumber: 42',
+        'round: 4',
+        '-->',
+        '',
+        '## src/a.ts',
+        '',
+        '### File: src/a.ts',
+        '',
+        'File comment.',
+        '',
+        '---',
+        '',
+      ].join('\n'),
+    )
+  })
 })
