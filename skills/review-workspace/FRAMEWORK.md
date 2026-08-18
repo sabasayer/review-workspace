@@ -16,7 +16,7 @@ The workspace is a decision surface, not an AI report. Code remains primary; gen
 2. **Order by review logic.** Group files into Behavioral Groups and order them (`order`) by dependency, risk, and reviewer comprehension rather than alphabetically. Assign `risk` (`low`/`medium`/`high`) to every group.
 3. **Keep evidence local.** Attach Annotations and Evidence to the exact Target they concern, not a disconnected summary block.
 4. **Preserve reviewer judgment.** Classify every Evidence item's `kind` (`observed`, `author-claim`, `inference`) so the UI can distinguish observed fact from your inference. Never present inference as fact or make the approval decision.
-5. **Answer, don't chat.** Respond to open Questions (`questions.jsonl`) with exactly one Answer per Question, citing Evidence where applicable — never as free-form commentary elsewhere in the document.
+5. **Answer Questions, don't touch change-requests.** `questions.jsonl` holds Comments of two kinds. For `kind: 'question'`: respond with exactly one Answer per Question, citing Evidence where applicable — never as free-form commentary elsewhere in the document. For `kind: 'change-request'`: never write an Answer, and never say or imply one was addressed — that's not yours to decide. Resolution status for a change-request is computed mechanically by the engine itself once a later round exists (whether its Target was touched by the incremental diff, or has gone stale) and only the human reviewer can actually mark one resolved. Your only obligation to a change-request is the same one every Target gets: make sure it still resolves cleanly against the diff you're covering.
 6. **Be honest about verification.** Mark a Verification item `unverified` unless real proof (a passing test, an observed run, a matching snapshot) already exists. A screenshot or a green mocked test is not proof of real backend behavior.
 
 ## The Review Document you produce
@@ -92,7 +92,7 @@ Read from the bundle directory and, if materializing a brand-new bundle, from th
 
 - `changes.diff` — the complete, authoritative Unified Patch (git-style `diff --git` or bare POSIX `---`/`+++` format, both are valid)
 - `review.json` — the last published Review Document, if any (its `comparison` identity must match exactly)
-- `questions.jsonl` — open Questions needing Answers
+- `questions.jsonl` — open Comments needing your attention: `kind: 'question'` needs an Answer, `kind: 'change-request'` does not (see step 5)
 - `assets/` — evidence images already present
 - Whatever's available externally: issue/MR description, discussions, pipeline jobs and failures, base/head image blobs, runtime previews
 - The Comparison's own identity metadata (title, number, url, author, source/target branch, description) — set these on `comparison` whenever the source system exposes them (e.g. a GitLab/GitHub MR); the UI's metadata panel has nothing to show without them
@@ -121,9 +121,11 @@ For each Annotation or Behavioral Group that needs support, add Evidence with th
 
 **Complete when:** every risk-relevant claim has either Evidence or an explicit Verification gap.
 
-### 5. Answer open Questions
+### 5. Answer open Questions — leave change-requests alone
 
-For each `open` entry in `questions.jsonl`, write exactly one Answer referencing its `questionId`, citing Evidence where applicable. Never leave an open Question unanswered if you have the information to answer it — leave it open only when you genuinely don't.
+For each `open` entry in `questions.jsonl` with `kind: 'question'`, write exactly one Answer referencing its `questionId`, citing Evidence where applicable. Never leave an open Question unanswered if you have the information to answer it — leave it open only when you genuinely don't.
+
+Entries with `kind: 'change-request'` are not yours to answer or resolve — don't write an Answer for one, and don't describe it as addressed anywhere in the document, even if the diff you're covering plainly fixes it. The engine computes and displays a mechanical resolution status for these on its own once a later round exists; only the human reviewer's own action in the UI actually resolves one.
 
 ### 6. Write the Summary
 
