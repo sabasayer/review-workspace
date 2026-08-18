@@ -72,6 +72,8 @@ export interface RenderedSummary {
 
 export interface ViewModel {
   comparison: Comparison
+  /** This bundle's own round number in its chain — 1 for a bundle with no `chain.json`. */
+  round: number
   groups: RenderedGroup[]
   files: RenderedFile[]
   diagnostics: Diagnostic[]

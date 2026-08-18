@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { validateBundle } from '../bundle/validate-bundle.ts'
 import { buildGeneratorPrompt, render, toInlineRows, toSideBySideRows } from './render.ts'
 import type { ReviewDocument } from '../schema/types.ts'
@@ -262,6 +264,55 @@ describe('render', () => {
     const document: ReviewDocument = { schemaVersion: 1, comparison: { base: 'a', head: 'b' } }
     const vm = render(document, { files: [] }, [], '/tmp/fake-bundle')
     expect(vm.summary).toBeUndefined()
+  })
+})
+
+describe('render — round-N carry-forward', () => {
+  const round1Fixture = fileURLToPath(new URL('../../fixtures/bundles/chained-mr-100/', import.meta.url))
+  const round2Fixture = fileURLToPath(new URL('../../fixtures/bundles/chained-mr-100-r2/', import.meta.url))
+
+  let workParent: string
+  let round2: string
+
+  beforeEach(() => {
+    workParent = mkdtempSync(join(tmpdir(), 'review-workspace-render-carry-'))
+    cpSync(round1Fixture, join(workParent, 'chained-mr-100'), { recursive: true })
+    round2 = join(workParent, 'chained-mr-100-r2')
+    cpSync(round2Fixture, round2, { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(workParent, { recursive: true, force: true })
+  })
+
+  it('reports round 1 for a bundle with no chain.json', () => {
+    const dir = bundlePath('valid')
+    const result = validateBundle(dir)
+    const vm = render(result.document as ReviewDocument, result.patch!, result.diagnostics ?? [], dir)
+    expect(vm.round).toBe(1)
+  })
+
+  it('reports the round number from chain.json for a round-N bundle', () => {
+    const result = validateBundle(round2)
+    const vm = render(result.document as ReviewDocument, result.patch!, result.diagnostics ?? [], round2)
+    expect(vm.round).toBe(2)
+  })
+
+  it('carries forward a Behavioral Group and Annotation for a file the incremental patch does not touch', () => {
+    const result = validateBundle(round2)
+    const vm = render(result.document as ReviewDocument, result.patch!, result.diagnostics ?? [], round2)
+
+    expect(vm.groups.map((g) => g.id)).toContain('bg-logging')
+    const loggingFile = vm.files.find((f) => f.path === 'src/logging.ts')!
+    expect(loggingFile.annotations.map((a) => a.id)).toContain('an-logging')
+  })
+
+  it('does not carry forward an Annotation for a file the incremental patch touches, keeping only the round\'s fresh one', () => {
+    const result = validateBundle(round2)
+    const vm = render(result.document as ReviewDocument, result.patch!, result.diagnostics ?? [], round2)
+
+    const retryFile = vm.files.find((f) => f.path === 'src/retry.ts')!
+    expect(retryFile.annotations.map((a) => a.id)).toEqual(['an-retry-2'])
   })
 })
 

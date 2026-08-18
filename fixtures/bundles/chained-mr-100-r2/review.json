@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "base": "base1111",
+    "head": "head2222",
+    "repository": "example/carry",
+    "number": 100,
+    "title": "Add retry, logging, and legacy cleanup",
+    "url": "https://gitlab.example.com/example/carry/-/merge_requests/100",
+    "author": "Review Bot",
+    "sourceBranch": "feat/carry-forward",
+    "targetBranch": "main",
+    "description": "Adds a retry around the API call, an audit log line, and a legacy helper."
+  },
+  "annotations": [
+    {
+      "id": "an-retry-2",
+      "target": { "type": "file", "path": "src/retry.ts" },
+      "summary": "Retries the API call up to three times before giving up."
+    }
+  ]
+}

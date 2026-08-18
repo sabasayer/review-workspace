@@ -1,0 +1,3 @@
+{"type":"raised","id":"cr-retry","createdAt":"2026-01-01T00:00:00.000Z","body":"Please add a backoff between retries.","target":{"type":"line","path":"src/retry.ts","side":"head","line":2,"expectedText":"  attempt()"},"kind":"change-request"}
+{"type":"raised","id":"cr-logging","createdAt":"2026-01-01T00:01:00.000Z","body":"Please redact PII before logging the message.","target":{"type":"line","path":"src/logging.ts","side":"head","line":2,"expectedText":"  console.log(msg)"},"kind":"change-request"}
+{"type":"raised","id":"cr-legacy","createdAt":"2026-01-01T00:02:00.000Z","body":"Please delete this dead legacy helper instead of calling it.","target":{"type":"line","path":"src/legacy.ts","side":"head","line":2,"expectedText":"  doOldThing()"},"kind":"change-request"}

@@ -5,10 +5,11 @@ import { join } from 'node:path'
 import { validateBundle, type ValidateBundleResult } from '../bundle/validate-bundle.ts'
 import { publishBundleAndExportHandoff } from '../bundle/publish-with-handoff.ts'
 import { watchBundle } from './watch-bundle.ts'
-import { raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion } from '../questions/questions-log.ts'
+import { raiseQuestion, resolveComment, withdrawAndReplaceQuestion } from '../questions/questions-log.ts'
 import type { CommentKind } from '../questions/types.ts'
 import { askForRepoPathOnStdin } from '../handoff/ask-repo-path.ts'
 import type { AskForRepoPath } from '../handoff/repo-path-cache.ts'
+import { carryForwardChain, listComments } from '../bundle/carry-forward.ts'
 import { readReviewState, writeReviewState } from '../review-state/review-state.ts'
 import type { ReviewState } from '../review-state/types.ts'
 import { render } from '../renderer/render.ts'
@@ -98,6 +99,11 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
   const writeToken = opts.writeToken ?? generateWriteToken()
   const askForRepoPath = opts.askForRepoPath ?? askForRepoPathOnStdin
 
+  // A round-N bundle (has chain.json) carries forward every still-open change-request
+  // from the previous round into its own log the moment it's opened — idempotent, so
+  // safe to repeat on every subsequent change below too.
+  carryForwardChain(bundlePath)
+
   // The served document is cached and only refreshed by the watcher below, so a
   // publish must actually trigger re-validation for /document to ever change —
   // this is what makes file watching load-bearing rather than a no-op wrapper
@@ -105,6 +111,7 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
   let latest: ValidateBundleResult = validateBundle(bundlePath)
   const watcher = watchBundle(bundlePath)
   watcher.emitter.on('change', () => {
+    carryForwardChain(bundlePath)
     latest = validateBundle(bundlePath)
   })
 
@@ -134,7 +141,7 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
     }
 
     if (req.method === 'GET' && url.pathname === '/questions') {
-      respond(200, readQuestions(bundlePath))
+      respond(200, listComments(bundlePath))
       return
     }
 

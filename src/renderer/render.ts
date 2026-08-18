@@ -2,6 +2,7 @@ import { resolve } from 'node:path'
 import type { ReviewDocument, Target } from '../schema/types.ts'
 import type { ParsedPatch, PatchFile } from '../patch/types.ts'
 import type { Diagnostic } from '../bundle/diagnostics.ts'
+import { collectCarriedReviewContent, createCaches, readChain } from '../bundle/carry-forward.ts'
 import { ALLOWED_ASSET_EXTENSIONS } from '../security/asset-path.ts'
 import type {
   RenderedFile,
@@ -155,7 +156,24 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
     diagnosticsByPath.set(path, list)
   }
 
-  const groups: RenderedGroup[] = [...(document.behavioralGroups ?? [])]
+  // Both `chain` below and `collectCarriedReviewContent` read the same chain.json —
+  // sharing one `Caches` instance across both calls (scoped to this single `render()`
+  // call, then discarded) makes that one disk read either way, without ever letting the
+  // read survive past this call to go stale on a later one.
+  const caches = createCaches()
+  const chain = readChain(bundlePath, caches)
+
+  // Behavioral Groups/Annotations from earlier rounds the incremental patch doesn't
+  // touch surface here unchanged (framework.md's "slim rounds") — round N's own
+  // document only needs fresh ones for genuinely new material.
+  const carried = collectCarriedReviewContent(bundlePath, document, caches)
+  const effectiveDocument: ReviewDocument = {
+    ...document,
+    behavioralGroups: [...(document.behavioralGroups ?? []), ...carried.behavioralGroups],
+    annotations: [...(document.annotations ?? []), ...carried.annotations],
+  }
+
+  const groups: RenderedGroup[] = [...(effectiveDocument.behavioralGroups ?? [])]
     .sort((a, b) => a.order - b.order)
     .map((g) => ({
       id: g.id,
@@ -187,7 +205,7 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
   const files: RenderedFile[] = orderedPaths
     .map((path) => patchFileByPath.get(path))
     .filter((f): f is PatchFile => f !== undefined)
-    .map((f) => renderFile(f, document, diagnosticsByPath.get(f.path) ?? []))
+    .map((f) => renderFile(f, effectiveDocument, diagnosticsByPath.get(f.path) ?? []))
 
   const attachedPaths = new Set(patch.files.map((f) => f.path))
   const bundleLevelDiagnostics = diagnostics.filter((d) => {
@@ -197,12 +215,13 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
 
   return {
     comparison: document.comparison,
+    round: chain?.round ?? 1,
     groups,
     files,
     diagnostics: bundleLevelDiagnostics,
     generatorPrompt: buildGeneratorPrompt(bundlePath),
     answers: document.answers ?? [],
-    summary: renderSummary(document, attachedPaths),
+    summary: renderSummary(effectiveDocument, attachedPaths),
   }
 }
 

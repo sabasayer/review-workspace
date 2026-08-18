@@ -483,3 +483,71 @@ describe('POST /publish hand-off export', () => {
     expect(existsSync(join(repoDir, '.review-feedback'))).toBe(false)
   })
 })
+
+describe('round-N carry-forward', () => {
+  const round1Fixture = fileURLToPath(new URL('../../fixtures/bundles/chained-mr-100/', import.meta.url))
+  const round2Fixture = fileURLToPath(new URL('../../fixtures/bundles/chained-mr-100-r2/', import.meta.url))
+
+  let roundParent: string
+  let round2: string
+  let roundHandle: ReviewServerHandle
+
+  beforeEach(async () => {
+    roundParent = mkdtempSync(join(tmpdir(), 'review-workspace-round-server-'))
+    cpSync(round1Fixture, join(roundParent, 'chained-mr-100'), { recursive: true })
+    round2 = join(roundParent, 'chained-mr-100-r2')
+    cpSync(round2Fixture, round2, { recursive: true })
+    roundHandle = await startReviewServer(round2)
+  })
+
+  afterEach(async () => {
+    await roundHandle.close()
+    rmSync(roundParent, { recursive: true, force: true })
+  })
+
+  function roundBaseUrl() {
+    return `http://127.0.0.1:${roundHandle.port}`
+  }
+
+  it('GET /questions surfaces every still-open change-request carried forward from the previous round', async () => {
+    const comments = await (await fetch(`${roundBaseUrl()}/questions`)).json()
+    const ids = comments.map((c: { id: string }) => c.id)
+    expect(ids).toEqual(expect.arrayContaining(['cr-retry', 'cr-logging', 'cr-legacy']))
+  })
+
+  it('GET /questions attaches each carried comment\'s mechanical Resolution status', async () => {
+    const comments = await (await fetch(`${roundBaseUrl()}/questions`)).json()
+    const byId = new Map(comments.map((c: { id: string; resolution?: { status: string } }) => [c.id, c.resolution?.status]))
+    expect(byId.get('cr-retry')).toBe('target-touched')
+    expect(byId.get('cr-logging')).toBe('target-untouched')
+  })
+
+  it('surfaces a target-gone carried comment distinctly rather than dropping it', async () => {
+    const comments = await (await fetch(`${roundBaseUrl()}/questions`)).json()
+    const legacy = comments.find((c: { id: string }) => c.id === 'cr-legacy')
+    expect(legacy).toBeDefined()
+    expect(legacy.resolution.status).toBe('target-gone')
+  })
+
+  it('lets the reviewer resolve a carried-forward comment directly from the new round', async () => {
+    const resolveRes = await fetch(`${roundBaseUrl()}/questions/cr-retry/resolve`, {
+      method: 'POST',
+      headers: { 'x-write-token': roundHandle.writeToken },
+    })
+    expect(resolveRes.status).toBe(200)
+    const resolved = await resolveRes.json()
+    expect(resolved.resolved).toBe(true)
+  })
+
+  it('GET /view surfaces Behavioral Groups/Annotations carried forward from the previous round untouched', async () => {
+    const view = await (await fetch(`${roundBaseUrl()}/view`)).json()
+    expect(view.groups.map((g: { id: string }) => g.id)).toContain('bg-logging')
+    const loggingFile = view.files.find((f: { path: string }) => f.path === 'src/logging.ts')
+    expect(loggingFile.annotations.map((a: { id: string }) => a.id)).toContain('an-logging')
+  })
+
+  it('GET /document exposes the round\'s own comparison alongside the previous-round chain', async () => {
+    const document = await (await fetch(`${roundBaseUrl()}/document`)).json()
+    expect(document.document.comparison.head).toBe('head2222')
+  })
+})

@@ -123,6 +123,25 @@ export function resolveComment(bundlePath: string, commentId: string): ResolveCo
   }
 }
 
+/**
+ * Copies a still-open change-request Comment from an earlier round's log into this
+ * round's own log, preserving its id and original createdAt so a Reviewer can act on it
+ * (resolve it) directly from this round. No-ops if this round's log already has a
+ * `raised` entry for that id — safe to call on every bundle open/validate/render.
+ */
+export function carryForwardComment(bundlePath: string, comment: Comment): void {
+  const alreadyCarried = readLog(bundlePath).some((entry) => entry.type === 'raised' && entry.id === comment.id)
+  if (alreadyCarried) return
+  appendEntry(bundlePath, {
+    type: 'raised',
+    id: comment.id,
+    createdAt: comment.createdAt,
+    body: comment.body,
+    target: comment.target,
+    kind: comment.kind,
+  })
+}
+
 /** Reduces the append-only log into the current set of Comments. */
 export function readQuestions(bundlePath: string): Comment[] {
   const comments = new Map<string, Comment>()

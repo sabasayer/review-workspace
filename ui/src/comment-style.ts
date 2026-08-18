@@ -1,4 +1,4 @@
-import type { Question } from './types.ts'
+import type { Question, ResolutionStatus } from './types.ts'
 
 /**
  * Shared visual language for Comment badges: a Question uses "?" in info blue, a
@@ -48,4 +48,31 @@ export function commentStatusLabel(comment: Question, hasAnswer = false): string
   if (comment.resolved) return 'Resolved'
   if (hasAnswer) return 'Answered'
   return comment.status === 'open' ? 'Open' : 'Withdrawn'
+}
+
+/**
+ * A Resolution is a purely mechanical hunk-fingerprint signal, never a judgment that a
+ * concern was actually addressed (see resolution.ts) — labels and colors below must read
+ * as a neutral "was this touched" fact, not as an assessment. `target-gone` still reads
+ * as warning/distinct from the neutral "untouched" case, since it means the reviewer's
+ * original Target is no longer where they left it, not just untouched.
+ */
+export function resolutionStatusColor(status: ResolutionStatus): 'success' | 'warning' | 'error' | 'neutral' {
+  if (status === 'target-touched') return 'success'
+  if (status === 'target-partially-touched') return 'warning'
+  if (status === 'target-gone') return 'error'
+  return 'neutral'
+}
+
+export function resolutionStatusLabel(status: ResolutionStatus): string {
+  switch (status) {
+    case 'target-touched':
+      return 'Touched by new commits'
+    case 'target-partially-touched':
+      return 'Partially touched by new commits'
+    case 'target-untouched':
+      return 'Not touched by new commits'
+    case 'target-gone':
+      return 'Target gone'
+  }
 }
