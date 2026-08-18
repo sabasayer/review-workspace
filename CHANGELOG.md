@@ -1,3 +1,16 @@
+# [1.6.0](https://github.com/sabasayer/review-workspace/compare/v1.5.0...v1.6.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* **carry-forward:** scope ancestor read caches to a single call ([#11](https://github.com/sabasayer/review-workspace/issues/11)) ([3d8ba67](https://github.com/sabasayer/review-workspace/commit/3d8ba67682f9920e3f5e41da17acb93ef7537424)), closes [#16](https://github.com/sabasayer/review-workspace/issues/16)
+* rename mechanical resolution statuses to avoid implying judgment ([#11](https://github.com/sabasayer/review-workspace/issues/11)) ([1b036d7](https://github.com/sabasayer/review-workspace/commit/1b036d7670be04f11e8d6428cb87804c2de0cfed))
+
+
+### Features
+
+* carry forward open change-requests with evidence-backed Resolutions ([#11](https://github.com/sabasayer/review-workspace/issues/11)) ([2a82e10](https://github.com/sabasayer/review-workspace/commit/2a82e10e15731344b4e9a55a08c5057d1b920fef))
+
 # [1.5.0](https://github.com/sabasayer/review-workspace/compare/v1.4.0...v1.5.0) (2026-08-18)
 
 
