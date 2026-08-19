@@ -1,10 +1,11 @@
 import { resolve } from 'node:path'
-import type { ReviewDocument, Target } from '../schema/types.ts'
+import type { Annotation, Evidence, ReviewDocument, Target, VerificationItem } from '../schema/types.ts'
 import type { ParsedPatch, PatchFile } from '../patch/types.ts'
 import type { Diagnostic } from '../bundle/diagnostics.ts'
 import { collectCarriedReviewContent, createCaches, readChain } from '../bundle/carry-forward.ts'
 import { ALLOWED_ASSET_EXTENSIONS } from '../security/asset-path.ts'
 import type {
+  RenderedAnnotation,
   RenderedFile,
   RenderedGroup,
   RenderedImageEvidence,
@@ -69,8 +70,52 @@ function diagnosticLine(diagnostic: Diagnostic): number | undefined {
   return diagnostic.kind === 'stale-line-target' ? diagnostic.line : undefined
 }
 
-function renderFile(patchFile: PatchFile, document: ReviewDocument, fileDiagnostics: Diagnostic[]): RenderedFile {
-  const fileAnnotations = (document.annotations ?? []).filter((a) => targetPath(a.target) === patchFile.path)
+/** Builds a lookup from a document's `verification[]` — keyed by each id a Verification item's own `targetIds` names (an Annotation id, another Evidence id, or a file path). */
+function buildVerificationByTargetId(verification: VerificationItem[]): Map<string, VerificationItem[]> {
+  const map = new Map<string, VerificationItem[]>()
+  for (const v of verification) {
+    for (const id of v.targetIds ?? []) {
+      const list = map.get(id) ?? []
+      list.push(v)
+      map.set(id, list)
+    }
+  }
+  return map
+}
+
+/** Resolves an Annotation's own `evidenceIds` and any Verification items whose `targetIds` name it, for the "what backs this claim" view. */
+function toRenderedAnnotation(
+  annotation: Annotation,
+  evidenceById: Map<string, Evidence>,
+  verificationByTargetId: Map<string, VerificationItem[]>,
+): RenderedAnnotation {
+  const evidence = (annotation.evidenceIds ?? [])
+    .map((id) => evidenceById.get(id))
+    .filter((e): e is Evidence => e !== undefined)
+    .map((e) => ({
+      id: e.id,
+      kind: e.kind,
+      description: e.description,
+      ...(e.pipeline ? { pipeline: { jobName: e.pipeline.jobName, status: e.pipeline.status, url: e.pipeline.url } } : {}),
+    }))
+  const verification = (verificationByTargetId.get(annotation.id) ?? []).map((v) => ({
+    id: v.id,
+    description: v.description,
+    status: v.status,
+  }))
+  return { ...annotation, evidence, verification }
+}
+
+function renderFile(
+  patchFile: PatchFile,
+  document: ReviewDocument,
+  fileDiagnostics: Diagnostic[],
+  evidenceById: Map<string, Evidence>,
+  verificationByTargetId: Map<string, VerificationItem[]>,
+): RenderedFile {
+  const fileAnnotations = (document.annotations ?? [])
+    .filter((a) => targetPath(a.target) === patchFile.path)
+    .map((a) => toRenderedAnnotation(a, evidenceById, verificationByTargetId))
 
   const hunks = patchFile.hunks.map((hunk, hunkIndex) => ({
     oldStart: hunk.oldStart,
@@ -126,6 +171,18 @@ function renderFile(patchFile: PatchFile, document: ReviewDocument, fileDiagnost
       description: e.description,
     }))
 
+  // A Verification item's targetIds commonly name an Evidence id and the file
+  // path together, with no specific Annotation named at all — matching only on
+  // fileAnnotations' ids (as imageEvidence/pipelineEvidence do above) would miss
+  // those entirely, so this also matches the file's own path directly.
+  const fileVerificationIds = new Set<string>()
+  const fileVerification: RenderedAnnotation['verification'] = []
+  for (const v of [...(verificationByTargetId.get(patchFile.path) ?? []), ...fileAnnotations.flatMap((a) => verificationByTargetId.get(a.id) ?? [])]) {
+    if (fileVerificationIds.has(v.id)) continue
+    fileVerificationIds.add(v.id)
+    fileVerification.push({ id: v.id, description: v.description, status: v.status })
+  }
+
   return {
     path: patchFile.path,
     oldPath: patchFile.oldPath,
@@ -134,6 +191,7 @@ function renderFile(patchFile: PatchFile, document: ReviewDocument, fileDiagnost
     annotations: fileAnnotations,
     imageEvidence,
     pipelineEvidence,
+    verification: fileVerification,
     diagnostics: fileLevelDiagnostics,
   }
 }
@@ -201,11 +259,14 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
     }
   }
 
+  const evidenceById = new Map((effectiveDocument.evidence ?? []).map((e) => [e.id, e]))
+  const verificationByTargetId = buildVerificationByTargetId(effectiveDocument.verification ?? [])
+
   const patchFileByPath = new Map(patch.files.map((f) => [f.path, f]))
   const files: RenderedFile[] = orderedPaths
     .map((path) => patchFileByPath.get(path))
     .filter((f): f is PatchFile => f !== undefined)
-    .map((f) => renderFile(f, effectiveDocument, diagnosticsByPath.get(f.path) ?? []))
+    .map((f) => renderFile(f, effectiveDocument, diagnosticsByPath.get(f.path) ?? [], evidenceById, verificationByTargetId))
 
   const attachedPaths = new Set(patch.files.map((f) => f.path))
   const bundleLevelDiagnostics = diagnostics.filter((d) => {
@@ -221,19 +282,25 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
     diagnostics: bundleLevelDiagnostics,
     generatorPrompt: buildGeneratorPrompt(bundlePath),
     answers: document.answers ?? [],
-    summary: renderSummary(effectiveDocument, attachedPaths),
+    summary: renderSummary(effectiveDocument, attachedPaths, evidenceById, verificationByTargetId),
   }
 }
 
 /** Dangling ids/paths are dropped rather than diagnosed — same treatment as evidence/verification targetIds. */
-function renderSummary(document: ReviewDocument, attachedPaths: Set<string>): RenderedSummary | undefined {
+function renderSummary(
+  document: ReviewDocument,
+  attachedPaths: Set<string>,
+  evidenceById: Map<string, Evidence>,
+  verificationByTargetId: Map<string, VerificationItem[]>,
+): RenderedSummary | undefined {
   if (!document.summary) return undefined
   const annotationsById = new Map((document.annotations ?? []).map((a) => [a.id, a]))
   return {
     text: document.summary.text,
     highlightAnnotations: (document.summary.highlightAnnotationIds ?? [])
       .map((id) => annotationsById.get(id))
-      .filter((a): a is NonNullable<typeof a> => a !== undefined),
+      .filter((a): a is NonNullable<typeof a> => a !== undefined)
+      .map((a) => toRenderedAnnotation(a, evidenceById, verificationByTargetId)),
     highlightPaths: (document.summary.highlightPaths ?? []).filter((path) => attachedPaths.has(path)),
   }
 }

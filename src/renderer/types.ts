@@ -1,6 +1,26 @@
 import type { Annotation, Answer, Comparison } from '../schema/types.ts'
 import type { Diagnostic } from '../bundle/diagnostics.ts'
 
+/** An Evidence item resolved from one of an Annotation's own `evidenceIds`. */
+export interface RenderedAnnotationEvidence {
+  id: string
+  kind: 'observed' | 'author-claim' | 'inference'
+  description: string
+  pipeline?: { jobName: string; status: 'success' | 'failed' | 'running' | 'canceled' | 'skipped'; url: string }
+}
+
+/** A Verification item resolved from `verification[].targetIds` naming this Annotation's id. */
+export interface RenderedAnnotationVerification {
+  id: string
+  description: string
+  status: 'unverified' | 'verified' | 'gap'
+}
+
+export interface RenderedAnnotation extends Annotation {
+  evidence: RenderedAnnotationEvidence[]
+  verification: RenderedAnnotationVerification[]
+}
+
 export interface RenderedLine {
   id: string
   kind: 'context' | 'add' | 'remove'
@@ -8,7 +28,7 @@ export interface RenderedLine {
   oldLine?: number
   newLine?: number
   overflowsInline: boolean
-  annotations: Annotation[]
+  annotations: RenderedAnnotation[]
   diagnostics: Diagnostic[]
 }
 
@@ -44,9 +64,17 @@ export interface RenderedFile {
   oldPath?: string
   binary: boolean
   hunks: RenderedHunk[]
-  annotations: Annotation[]
+  annotations: RenderedAnnotation[]
   imageEvidence: RenderedImageEvidence[]
   pipelineEvidence: RenderedPipelineEvidence[]
+  /**
+   * Every Verification item targeting this file, directly (`targetIds` names the
+   * file's path) or via one of its Annotations (`targetIds` names the Annotation's
+   * id) — a superset of what any single Annotation's own `.verification` carries,
+   * since a Verification item commonly targets Evidence ids and a file path
+   * together without naming any specific Annotation at all.
+   */
+  verification: RenderedAnnotationVerification[]
   diagnostics: Diagnostic[]
 }
 
@@ -66,7 +94,7 @@ export interface SideBySideRow {
 
 export interface RenderedSummary {
   text: string
-  highlightAnnotations: Annotation[]
+  highlightAnnotations: RenderedAnnotation[]
   highlightPaths: string[]
 }
 

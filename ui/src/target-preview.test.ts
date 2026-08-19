@@ -19,6 +19,7 @@ const files: RenderedFile[] = [
   {
     path: 'src/auth/login.ts',
     binary: false,
+    verification: [],
     hunks: [
       {
         oldStart: 40,

@@ -7,6 +7,7 @@ import type { RenderedFile } from './types.ts'
 const file: RenderedFile = {
   path: 'src/a.ts',
   binary: false,
+  verification: [],
   hunks: [
     {
       oldStart: 1,
@@ -20,7 +21,7 @@ const file: RenderedFile = {
       ],
     },
   ],
-  annotations: [{ id: 'fa', target: { type: 'file', path: 'src/a.ts' }, summary: '' }],
+  annotations: [{ id: 'fa', target: { type: 'file', path: 'src/a.ts' }, summary: '', evidence: [], verification: [] }],
   imageEvidence: [],
   pipelineEvidence: [],
   diagnostics: [],
@@ -37,7 +38,7 @@ describe('diff-file-stats', () => {
 
 describe('file-annotations', () => {
   it('separates file-level and line-level annotations', () => {
-    const withLine = { ...file, hunks: [{ ...file.hunks[0], lines: [{ ...file.hunks[0].lines[0], annotations: [{ id: 'la', target: { type: 'line' as const, path: 'src/a.ts', side: 'head' as const, line: 1, expectedText: 'a' }, summary: '' }] }] }] }
+    const withLine = { ...file, hunks: [{ ...file.hunks[0], lines: [{ ...file.hunks[0].lines[0], annotations: [{ id: 'la', target: { type: 'line' as const, path: 'src/a.ts', side: 'head' as const, line: 1, expectedText: 'a' }, summary: '', evidence: [], verification: [] }] }] }] }
     expect(fileLevelAnnotations(withLine)).toHaveLength(1)
     expect(lineLevelAnnotations(withLine)).toHaveLength(1)
   })

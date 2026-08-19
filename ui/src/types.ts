@@ -23,6 +23,19 @@ export interface RelatedTarget {
   reason: string
 }
 
+export interface RenderedAnnotationEvidence {
+  id: string
+  kind: 'observed' | 'author-claim' | 'inference'
+  description: string
+  pipeline?: { jobName: string; status: 'success' | 'failed' | 'running' | 'canceled' | 'skipped'; url: string }
+}
+
+export interface RenderedAnnotationVerification {
+  id: string
+  description: string
+  status: 'unverified' | 'verified' | 'gap'
+}
+
 export interface Annotation {
   id: string
   target: Target
@@ -30,6 +43,8 @@ export interface Annotation {
   kind?: 'intent' | 'behavior' | 'risk'
   evidenceIds?: string[]
   relatedTargets?: RelatedTarget[]
+  evidence: RenderedAnnotationEvidence[]
+  verification: RenderedAnnotationVerification[]
 }
 
 export interface RenderedLine {
@@ -76,6 +91,8 @@ export interface RenderedFile {
   annotations: Annotation[]
   imageEvidence: RenderedImageEvidence[]
   pipelineEvidence: RenderedPipelineEvidence[]
+  /** Every Verification item targeting this file, directly or via one of its Annotations — a superset of any single Annotation's own `.verification`. */
+  verification: RenderedAnnotationVerification[]
   diagnostics: Diagnostic[]
 }
 

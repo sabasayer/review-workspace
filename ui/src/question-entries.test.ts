@@ -11,6 +11,7 @@ import type { RenderedFile } from './types.ts'
 const file: RenderedFile = {
   path: 'src/auth/login.ts',
   binary: false,
+  verification: [],
   hunks: [
     {
       oldStart: 40,
