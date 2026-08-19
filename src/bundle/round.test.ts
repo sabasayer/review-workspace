@@ -79,6 +79,21 @@ describe('nextRoundBundlePath', () => {
     const round2Path = join(workParent, 'chained-mr-42-r2')
     expect(nextRoundBundlePath(round2Path)).toBe(join(workParent, 'chained-mr-42-r3'))
   })
+
+  it('resolves a relative "." bundle path to a real sibling, not a "-r2" literal', () => {
+    const cwd = process.cwd()
+    process.chdir(workBundle)
+    try {
+      // basename only: process.cwd() after chdir may report a resolved
+      // symlink form of workParent (e.g. macOS's /private/var vs /var), so
+      // the parent directory string itself isn't guaranteed to match — what
+      // matters is that the sibling name is right, not nested inside "."
+      // as a literal ".-r2".
+      expect(basename(nextRoundBundlePath('.'))).toBe('chained-mr-42-r2')
+    } finally {
+      process.chdir(cwd)
+    }
+  })
 })
 
 describe('scaffoldNextRound', () => {
@@ -146,5 +161,19 @@ describe('scaffoldNextRound', () => {
     scaffoldNextRound(workBundle, 'ccc3333', { patch: incrementalPatch })
 
     expect(() => scaffoldNextRound(workBundle, 'ccc3333', { patch: incrementalPatch })).toThrow(/already exists/)
+  })
+
+  it('scaffolds a real sibling when invoked with a relative "." bundle path', () => {
+    const cwd = process.cwd()
+    process.chdir(workBundle)
+    try {
+      const result = scaffoldNextRound('.', 'ccc3333', { patch: incrementalPatch })
+
+      expect(basename(result.bundlePath)).toBe('chained-mr-42-r2')
+      expect(existsSync(join(workBundle, '.-r2'))).toBe(false)
+      expect(result.chain.previousBundle).toBe(`../${basename(workBundle)}`)
+    } finally {
+      process.chdir(cwd)
+    }
   })
 })
