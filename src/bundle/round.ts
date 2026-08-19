@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join, relative } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import type { Comparison, ReviewDocument } from '../schema/types.ts'
 
 export interface Chain {
@@ -60,8 +60,13 @@ function parseBundleDirName(dirName: string): { baseName: string; round: number 
 
 /** The sibling bundle path a new round for `bundlePath` would scaffold into. */
 export function nextRoundBundlePath(bundlePath: string): string {
-  const { baseName, round } = parseBundleDirName(basename(bundlePath))
-  return join(dirname(bundlePath), `${baseName}-r${round + 1}`)
+  // Resolve first: basename/dirname on "." or ".." (a bundle path relative to
+  // cwd, e.g. when invoked as `round .`) otherwise collapse to "." for both,
+  // producing a literal "-r{N}" sibling nested inside the bundle itself
+  // instead of a real sibling directory next to it.
+  const resolved = resolve(bundlePath)
+  const { baseName, round } = parseBundleDirName(basename(resolved))
+  return join(dirname(resolved), `${baseName}-r${round + 1}`)
 }
 
 /**
@@ -90,7 +95,8 @@ export function scaffoldNextRound(
     throw new Error(`Live head ${liveHead} matches the bundle's recorded head; no new round is needed`)
   }
 
-  const { round: currentRound } = parseBundleDirName(basename(bundlePath))
+  const resolvedBundlePath = resolve(bundlePath)
+  const { round: currentRound } = parseBundleDirName(basename(resolvedBundlePath))
   const newBundlePath = nextRoundBundlePath(bundlePath)
   if (existsSync(newBundlePath)) {
     throw new Error(`Round bundle already exists at ${newBundlePath}`)
@@ -99,7 +105,7 @@ export function scaffoldNextRound(
   const chain: Chain = {
     mrKey: mrKeyFor(document.comparison),
     round: currentRound + 1,
-    previousBundle: relative(newBundlePath, bundlePath),
+    previousBundle: relative(newBundlePath, resolvedBundlePath),
     previousHead: document.comparison.head,
   }
 
