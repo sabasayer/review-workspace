@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/sabasayer/review-workspace/compare/v1.7.0...v1.7.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **round:** resolve relative bundle paths before computing sibling name ([76e00d6](https://github.com/sabasayer/review-workspace/commit/76e00d64e508580669569a4183e22e32c305d224))
+
 # [1.7.0](https://github.com/sabasayer/review-workspace/compare/v1.6.0...v1.7.0) (2026-08-18)
 
 
