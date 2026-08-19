@@ -8,7 +8,21 @@ import { resolveTargetPreview } from '../target-preview.ts'
 import { currentFiles } from '../composables/view-model-store.ts'
 import { splitHeadline } from '../annotation-view.ts'
 
-const props = withDefaults(defineProps<{ annotation: Annotation; defaultExpanded?: boolean }>(), { defaultExpanded: false })
+const props = withDefaults(
+  defineProps<{
+    annotation: Annotation
+    defaultExpanded?: boolean
+    /**
+     * Overrides how "jump to diff"/related-target links navigate. The default
+     * (scrollIntoView by anchor id) only works when the target file is actually
+     * in the DOM — not true inside FocusMode, which replaces the whole file
+     * list with this card. A parent in that situation should pass its own
+     * handler (e.g. exit FocusMode, then scroll once the file list is back).
+     */
+    jumpToDiff?: (path: string) => void
+  }>(),
+  { defaultExpanded: false },
+)
 
 // A parent that steps through several Annotations (e.g. FocusMode) reuses this
 // same component instance rather than remounting it, so headline/body and the
@@ -29,6 +43,10 @@ const evidenceLabel: Record<string, string> = { observed: 'observed', 'author-cl
 const evidenceColor: Record<string, 'success' | 'warning' | 'neutral'> = { observed: 'success', 'author-claim': 'warning', inference: 'neutral' }
 
 function jump(path: string) {
+  if (props.jumpToDiff) {
+    props.jumpToDiff(path)
+    return
+  }
   document.getElementById(anchorId(path))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 

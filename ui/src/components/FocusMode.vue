@@ -69,7 +69,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <button type="button" class="text-primary hover:underline" @click="emit('exit', null)">Esc — exit focus mode</button>
       </div>
 
-      <AnnotationCard v-if="currentAnnotation" :annotation="currentAnnotation" :default-expanded="true" />
+      <AnnotationCard
+        v-if="currentAnnotation"
+        :annotation="currentAnnotation"
+        :default-expanded="true"
+        :jump-to-diff="(path) => emit('exit', path)"
+      />
       <div v-else class="rounded-lg border border-default bg-elevated p-4 text-sm text-muted">
         {{ current?.verification.description }}
       </div>
