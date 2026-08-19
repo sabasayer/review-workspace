@@ -31,6 +31,9 @@ const navVisible = ref(true)
 const mrInfoOpen = ref(false)
 const questionsOpen = ref(false)
 const focusMode = ref(false)
+// Owned here, not inside FocusMode — it must survive toggling focus mode off
+// (e.g. "view diff for this item") and back on, which unmounts/remounts FocusMode.
+const focusEntryId = ref<string | undefined>()
 const writeTokenDraft = ref(questionsStore.writeToken)
 
 const groupedFiles = computed(() => {
@@ -128,6 +131,8 @@ async function onQuestionSelect(entry: (typeof questionEntries.value)[number]) {
       v-else-if="focusMode"
       :files="viewModel.files"
       :groups="viewModel.groups"
+      :current-id="focusEntryId"
+      @update:current-id="focusEntryId = $event"
       @exit="exitFocusMode"
     />
 

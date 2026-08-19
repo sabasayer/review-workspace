@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import type { Annotation, RenderedFile, RenderedGroup } from '../types.ts'
 import AnnotationCard from './AnnotationCard.vue'
 import { collectVerificationEntries, groupRiskLookup, startHere } from '../annotation-view.ts'
 
-const props = defineProps<{ files: readonly RenderedFile[]; groups: readonly RenderedGroup[] }>()
-const emit = defineEmits<{ exit: [path: string | null] }>()
+// `currentId` (a Verification item id, not a raw index) is owned by the parent
+// and survives this component's own mount/unmount — Focus mode toggles off
+// (e.g. "view diff for this item") and back on as a v-if, which would reset a
+// plain local index ref to 0 every time. Position by id instead of index so
+// "continue where I left off" holds even if the entry set is re-derived.
+const props = defineProps<{ files: readonly RenderedFile[]; groups: readonly RenderedGroup[]; currentId?: string }>()
+const emit = defineEmits<{ exit: [path: string | null]; 'update:currentId': [id: string] }>()
 
 const annotationsById = computed(() => {
   const map = new Map<string, Annotation>()
@@ -18,15 +23,23 @@ const entries = computed(() => {
   return startHere(collectVerificationEntries(props.files), riskOf)
 })
 
-const index = ref(0)
+const index = computed(() => {
+  const i = entries.value.findIndex((e) => e.verification.id === props.currentId)
+  return i === -1 ? 0 : i
+})
 const current = computed(() => entries.value[index.value])
 const currentAnnotation = computed(() => (current.value?.annotationId ? annotationsById.value.get(current.value.annotationId) : undefined))
 
+function goTo(target: number) {
+  const clamped = Math.min(Math.max(target, 0), entries.value.length - 1)
+  const entry = entries.value[clamped]
+  if (entry) emit('update:currentId', entry.verification.id)
+}
 function next() {
-  index.value = Math.min(index.value + 1, entries.value.length - 1)
+  goTo(index.value + 1)
 }
 function prev() {
-  index.value = Math.max(index.value - 1, 0)
+  goTo(index.value - 1)
 }
 
 function onKeydown(e: KeyboardEvent) {
