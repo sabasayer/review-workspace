@@ -206,6 +206,61 @@ describe('render', () => {
     ])
   })
 
+  it("resolves an Annotation's own evidenceIds onto its RenderedAnnotation", () => {
+    const document: ReviewDocument = {
+      schemaVersion: 1,
+      comparison: { base: 'a', head: 'b' },
+      annotations: [
+        { id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'risky change', evidenceIds: ['ev-1', 'ev-missing'] },
+      ],
+      evidence: [{ id: 'ev-1', kind: 'author-claim', description: 'author says this is safe' }],
+    }
+    const patch: ParsedPatch = { files: [{ path: 'src/a.ts', binary: false, hunks: [] }] }
+    const vm = render(document, patch, [], '/tmp/fake-bundle')
+    expect(vm.files[0].annotations[0].evidence).toEqual([{ id: 'ev-1', kind: 'author-claim', description: 'author says this is safe' }])
+  })
+
+  it("resolves Verification items whose targetIds name an Annotation onto that Annotation", () => {
+    const document: ReviewDocument = {
+      schemaVersion: 1,
+      comparison: { base: 'a', head: 'b' },
+      annotations: [{ id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'risky change' }],
+      verification: [
+        { id: 'ver-1', description: 'covered by a passing test', status: 'verified', targetIds: ['an-1'] },
+        { id: 'ver-2', description: 'unrelated to this annotation', status: 'gap', targetIds: ['an-2'] },
+      ],
+    }
+    const patch: ParsedPatch = { files: [{ path: 'src/a.ts', binary: false, hunks: [] }] }
+    const vm = render(document, patch, [], '/tmp/fake-bundle')
+    expect(vm.files[0].annotations[0].verification).toEqual([{ id: 'ver-1', description: 'covered by a passing test', status: 'verified' }])
+  })
+
+  it("resolves a Verification item onto RenderedFile.verification even when its targetIds name only the file path and an Evidence id, no Annotation", () => {
+    const document: ReviewDocument = {
+      schemaVersion: 1,
+      comparison: { base: 'a', head: 'b' },
+      annotations: [{ id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'risky change' }],
+      evidence: [{ id: 'ev-1', kind: 'observed', description: 'pipeline is green', targetIds: ['src/a.ts'] }],
+      verification: [{ id: 'ver-1', description: 'the fix actually landed', status: 'verified', targetIds: ['ev-1', 'src/a.ts'] }],
+    }
+    const patch: ParsedPatch = { files: [{ path: 'src/a.ts', binary: false, hunks: [] }] }
+    const vm = render(document, patch, [], '/tmp/fake-bundle')
+    expect(vm.files[0].annotations[0].verification).toEqual([])
+    expect(vm.files[0].verification).toEqual([{ id: 'ver-1', description: 'the fix actually landed', status: 'verified' }])
+  })
+
+  it('deduplicates a Verification item reachable both by file path and by an Annotation id onto RenderedFile.verification', () => {
+    const document: ReviewDocument = {
+      schemaVersion: 1,
+      comparison: { base: 'a', head: 'b' },
+      annotations: [{ id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'risky change' }],
+      verification: [{ id: 'ver-1', description: 'covered', status: 'verified', targetIds: ['an-1', 'src/a.ts'] }],
+    }
+    const patch: ParsedPatch = { files: [{ path: 'src/a.ts', binary: false, hunks: [] }] }
+    const vm = render(document, patch, [], '/tmp/fake-bundle')
+    expect(vm.files[0].verification).toEqual([{ id: 'ver-1', description: 'covered', status: 'verified' }])
+  })
+
   it('passes document.answers through onto the view model', () => {
     const dir = bundlePath('dangling-answer')
     const result = validateBundle(dir)
@@ -244,7 +299,9 @@ describe('render', () => {
     const patch: ParsedPatch = { files: [{ path: 'src/a.ts', binary: false, hunks: [] }] }
     const vm = render(document, patch, [], '/tmp/fake-bundle')
     expect(vm.summary?.text).toBe('Adds rate limiting.')
-    expect(vm.summary?.highlightAnnotations).toEqual([{ id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'the important bit' }])
+    expect(vm.summary?.highlightAnnotations).toEqual([
+      { id: 'an-1', target: { type: 'file', path: 'src/a.ts' }, summary: 'the important bit', evidence: [], verification: [] },
+    ])
     expect(vm.summary?.highlightPaths).toEqual(['src/a.ts'])
   })
 

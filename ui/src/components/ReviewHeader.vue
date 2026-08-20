@@ -11,12 +11,15 @@ defineProps<{
   promptCopied: boolean
   hasWriteToken: boolean
   writeTokenDraft: string
+  focusMode: boolean
+  focusModeCount: number
 }>()
 
 const emit = defineEmits<{
   'update:navVisible': [visible: boolean]
   'update:layout': [layout: 'inline' | 'side-by-side']
   'update:writeTokenDraft': [token: string]
+  'update:focusMode': [on: boolean]
   openQuestions: []
   openMrDetails: []
   copyPrompt: []
@@ -73,6 +76,20 @@ const emit = defineEmits<{
         <UChip :text="openQuestionCount" :show="openQuestionCount > 0" color="warning" size="sm">
           <UButton size="sm" variant="ghost" color="neutral" icon="i-lucide-message-circle-question" @click="emit('openQuestions')" />
         </UChip>
+      </UTooltip>
+
+      <div class="h-5 w-px bg-default" />
+
+      <UTooltip :text="focusMode ? 'Exit focus mode' : `Focus mode — step through ${focusModeCount} item(s) needing attention`">
+        <UButton
+          size="sm"
+          :variant="focusMode ? 'solid' : 'ghost'"
+          :color="focusMode ? 'primary' : 'neutral'"
+          icon="i-lucide-crosshair"
+          @click="emit('update:focusMode', !focusMode)"
+        >
+          Focus
+        </UButton>
       </UTooltip>
 
       <div class="h-5 w-px bg-default" />
