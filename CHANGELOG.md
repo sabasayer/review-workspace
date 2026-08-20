@@ -1,3 +1,16 @@
+# [1.8.0](https://github.com/sabasayer/review-workspace/compare/v1.7.1...v1.8.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **ui:** AnnotationCard's jump-to-diff links no-op inside Focus mode ([84e4f86](https://github.com/sabasayer/review-workspace/commit/84e4f86340adddf3bc8c695620099a9ca46c2c81))
+* **ui:** Focus mode forgets position across the "view diff" round-trip ([0890fd7](https://github.com/sabasayer/review-workspace/commit/0890fd70dc70c6f1f655cd7c1a5b471610342328))
+
+
+### Features
+
+* **ui:** redesign review surface for scanning, not reading ([fe22490](https://github.com/sabasayer/review-workspace/commit/fe22490313ffcab7066c011e9135e67c4a6e00c4))
+
 ## [1.7.1](https://github.com/sabasayer/review-workspace/compare/v1.7.0...v1.7.1) (2026-08-19)
 
 
