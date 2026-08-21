@@ -6,7 +6,7 @@ import { readQuestions } from '../questions/questions-log.ts'
 import type { ReviewDocument } from '../schema/types.ts'
 import { DEFAULT_LIMITS, type BundleLimits } from '../security/limits.ts'
 import { publishBundle, type PublishResult } from './publish.ts'
-import { readChain } from './round.ts'
+import { readChain } from './carry-forward.ts'
 
 export interface PublishWithHandoffOptions {
   limits?: BundleLimits

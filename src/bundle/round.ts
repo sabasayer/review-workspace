@@ -40,13 +40,6 @@ function readReviewDocument(bundlePath: string): ReviewDocument {
   return JSON.parse(readFileSync(join(bundlePath, 'review.json'), 'utf-8')) as ReviewDocument
 }
 
-/** Reads a bundle's `chain.json`, if it has one — absent for every round-1 bundle. */
-export function readChain(bundlePath: string): Chain | undefined {
-  const path = join(bundlePath, 'chain.json')
-  if (!existsSync(path)) return undefined
-  return JSON.parse(readFileSync(path, 'utf-8')) as Chain
-}
-
 /**
  * Reads a bundle directory name shaped like `<name>-r{N}` and splits it into
  * the chain's base name and that bundle's round number. A name with no
