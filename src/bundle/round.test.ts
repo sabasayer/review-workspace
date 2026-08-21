@@ -4,7 +4,7 @@ import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { validateBundle } from './validate-bundle.ts'
-import { checkRound, mrKeyFor, nextRoundBundlePath, readChain, scaffoldNextRound } from './round.ts'
+import { checkRound, mrKeyFor, nextRoundBundlePath, scaffoldNextRound } from './round.ts'
 
 const round1Fixture = fileURLToPath(new URL('../../fixtures/bundles/chained-mr-42/', import.meta.url))
 const round2Fixture = fileURLToPath(new URL('../../fixtures/bundles/chained-mr-42-r2/', import.meta.url))
@@ -48,25 +48,6 @@ describe('checkRound', () => {
     expect(result.needsNewRound).toBe(true)
     expect(result.recordedHead).toBe('bbb2222')
     expect(result.liveHead).toBe('ccc3333')
-  })
-})
-
-describe('readChain', () => {
-  it('returns undefined for a round-1 bundle with no chain.json', () => {
-    expect(readChain(workBundle)).toBeUndefined()
-  })
-
-  it('reads chain.json for a round-N>1 bundle', () => {
-    const round2Work = join(workParent, 'chained-mr-42-r2')
-    mkdirSync(round2Work)
-    cpSync(round2Fixture, round2Work, { recursive: true })
-
-    expect(readChain(round2Work)).toEqual({
-      mrKey: 'example/widgets!42',
-      round: 2,
-      previousBundle: '../chained-mr-42',
-      previousHead: 'bbb2222',
-    })
   })
 })
 

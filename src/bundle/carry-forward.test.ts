@@ -10,6 +10,7 @@ import {
   collectCommentHistory,
   computeCarriedResolutions,
   listComments,
+  readChain,
 } from './carry-forward.ts'
 
 const round1Fixture = fileURLToPath(new URL('../../fixtures/bundles/chained-mr-100/', import.meta.url))
@@ -29,6 +30,21 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(workParent, { recursive: true, force: true })
+})
+
+describe('readChain', () => {
+  it('returns undefined for a round-1 bundle with no chain.json', () => {
+    expect(readChain(round1)).toBeUndefined()
+  })
+
+  it('reads chain.json for a round-N>1 bundle', () => {
+    expect(readChain(round2)).toEqual({
+      mrKey: 'example/carry!100',
+      round: 2,
+      previousBundle: '../chained-mr-100',
+      previousHead: 'head1111',
+    })
+  })
 })
 
 describe('carryForwardChain', () => {
