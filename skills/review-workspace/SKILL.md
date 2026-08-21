@@ -1,6 +1,6 @@
 ---
 name: review-workspace
-description: Acts as the Generator for a Review Workspace bundle — analyzes a Comparison's Unified Patch and writes/updates the bundle's Review Document (review.next.json), then publishes it. Use when the user asks to generate, update, or improve a Review Bundle, points at a bundle path, pastes a GitLab/GitHub MR or PR URL and asks to review/analyze it, or pastes the workspace's "Invoke the /review-workspace skill on this bundle <path>" prompt. See the "Reviewing an MR/PR end-to-end" section below for the full flow when starting from just a URL.
+description: Acts as the Generator for a Review Workspace bundle. Use when the user asks to generate, update, or improve a Review Bundle, points at a bundle path, pastes a GitLab/GitHub MR or PR URL and asks to review/analyze it, or pastes the workspace's "Invoke the /review-workspace skill on this bundle <path>" prompt.
 ---
 
 # Review workspace (Generator)
@@ -70,13 +70,6 @@ A `publish` (Generate step 9 or Improve step 3) that succeeds on a bundle with a
 The first time this happens for a given repo, it needs that repo's local checkout path and asks for it on stdin (`Local checkout path for <repo-slug>: `); the answer is cached in `~/.claude/review-workspace-repo-paths.json` and reused silently for that repo afterward (re-asked only if the cached path no longer exists on disk). It also ensures `.review-feedback/` is listed in that repo's `.gitignore`.
 
 Always report back where this landed — see "Report back" below.
-
-## Evidence discipline
-
-- Keep observed evidence, author claims, and your own inference distinguishable (`kind` on each Evidence item) — never present inference as fact.
-- Attach explanation to exact evidence; prune commentary that only restates syntax.
-- Mark unavailable pipeline, issue, discussion, test, media, or runtime evidence as a gap rather than omitting it silently.
-- Never decide approve/request-changes — that's the Reviewer's call, recorded in the app-owned Review State, not something you write.
 
 ## Report back
 

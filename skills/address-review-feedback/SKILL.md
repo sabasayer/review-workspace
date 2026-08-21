@@ -1,6 +1,6 @@
 ---
 name: address-review-feedback
-description: Acts as the implementer on the receiving end of a Review Workspace hand-off file — reads its open change-request Comments, implements or explicitly skips each one against the target repo's own conventions, runs the target repo's own verification, writes a structured response file, and commits and pushes. Use when the user asks to address review feedback, points at a `.review-feedback/<mr-number>-round<N>.md` file, or asks to act on a hand-off from the `review-workspace` skill.
+description: Acts as the implementer on the receiving end of a Review Workspace hand-off file. Use when the user asks to address review feedback, points at a `.review-feedback/<mr-number>-round<N>.md` file, or asks to act on a hand-off from the `review-workspace` skill.
 ---
 
 # Address review feedback (implementer)
@@ -59,10 +59,7 @@ Ask the user directly: *spawn a separate background agent, pointed at the bundle
 
 ## Out of the skill's control
 
-- Never mark a change-request `resolved` — human-only, per step 4.
-- Never claim a fix is "verified" beyond the target repo's own real test output from step 5.
-- Never retry or repair a previous round's incomplete response file — if an earlier invocation was interrupted, just proceed normally against whatever hand-off file you find now.
-- Never auto-trigger anything — no watcher, no auto-spawn without step 8's question being asked and answered yes.
+Never retry or repair a previous round's incomplete response file — if an earlier invocation was interrupted, just proceed normally against whatever hand-off file you find now.
 
 ## Report back
 
