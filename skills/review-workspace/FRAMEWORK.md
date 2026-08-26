@@ -1,6 +1,6 @@
 # Review Workspace Generator Framework
 
-Generation and validation decisions for producing a Review Bundle's Review Document. Updated 2026-07-28.
+Generation and validation decisions for producing a Review Bundle's Review Document. Updated 2026-08-26.
 
 This framework covers the **Generator's** job only. The bundle contract, schema, validator, CLI, server, and UI are owned by the [review-workspace engine repo](https://github.com/sabasayer/review-workspace) (see its `docs/framework.md` and ADRs) — this document does not restate or override those; it tells the Generator how to produce content that fits them.
 
@@ -112,6 +112,15 @@ If evidence is unavailable, record it as a Verification `gap`. Do not manufactur
 
 **Complete when:** every changed file in `changes.diff` is accounted for and every claim you write has a source Target or is explicitly labeled inference.
 
+#### Finding the originating spec
+
+The MR/issue description alone often isn't the spec — look for what actually drove the change before treating the description as the full picture:
+
+1. Scan commit messages in the range for issue references (`#123`, `Closes #45`, GitLab `!67`, etc.) and fetch the linked issue/PRD.
+2. If none, check for a spec/PRD file under `docs/`, `specs/`, or similar in the target repo matching the branch name or feature.
+3. If neither turns up anything, the MR/issue description is the only spec available — treat requirements found nowhere in it as `inference`, not `author-claim`.
+4. If a real spec is found, use it (not just the description) as the source for judging whether an Annotation's claimed behavior is what was actually asked for, and for scoping Verification gaps around missing requirements.
+
 ### 2. Build the review map
 
 Trace changed symbols and behavior across files. Define Behavioral Groups, assign `risk` and `order`, and write a short `description` stating the reason for that group and its position in the order.
@@ -123,6 +132,23 @@ Prefer a small number of meaningful groups. A file may relate to several behavio
 ### 3. Create annotations
 
 Annotate decision-relevant Targets: intent boundaries, behavior changes, risk, removed safeguards, test evidence, pipeline causality, cross-file contracts. Avoid narrating obvious syntax — the diff already shows the code.
+
+For `kind: 'risk'` Annotations, the target repo's own documented standards (`CODING_STANDARDS.md`, `CONTRIBUTING.md`, etc.) always take priority — where one endorses something the smell baseline below would flag, don't flag it. Below that, use the baseline as a checklist for what's worth an Annotation at all; each hit is a labelled observation (`observed` Evidence, cited plainly — "possible Feature Envy"), never a verdict, never something that blocks the Verification/Answer steps.
+
+- **Mysterious Name** — a function, variable, or type whose name doesn't reveal what it does or holds.
+- **Duplicated Code** — the same logic shape appears in more than one hunk or file in the change.
+- **Feature Envy** — a method that reaches into another object's data more than its own.
+- **Data Clumps** — the same few fields or params keep travelling together.
+- **Primitive Obsession** — a primitive or string standing in for a domain concept that deserves its own type.
+- **Repeated Switches** — the same `switch`/`if`-cascade on the same type recurs across the change.
+- **Shotgun Surgery** — one logical change forces scattered edits across many files in the diff.
+- **Divergent Change** — one file or module is edited for several unrelated reasons.
+- **Speculative Generality** — abstraction, parameters, or hooks added for needs the spec doesn't have.
+- **Message Chains** — long `a.b().c().d()` navigation the caller shouldn't depend on.
+- **Middle Man** — a class or function that mostly just delegates onward.
+- **Refused Bequest** — a subclass or implementer that ignores or overrides most of what it inherits.
+
+Skip anything tooling (lint/typecheck) already enforces — an Annotation only earns its place per the Quality test below.
 
 **Complete when:** each important claim points to an exact Target and low-value commentary has been pruned.
 
