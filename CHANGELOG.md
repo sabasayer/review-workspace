@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/sabasayer/review-workspace/compare/v1.8.0...v1.9.0) (2026-09-03)
+
+
+### Features
+
+* **ui:** reviewer checkboxes and focus-mode notes ([37506a8](https://github.com/sabasayer/review-workspace/commit/37506a88b377399ae9c23b6b4c8e62407f303ffa))
+
 # [1.8.0](https://github.com/sabasayer/review-workspace/compare/v1.7.1...v1.8.0) (2026-08-20)
 
 
