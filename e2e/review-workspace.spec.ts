@@ -59,7 +59,7 @@ test.describe('enriched bundle', () => {
   })
 
   test('shows a Summary panel that jumps to a highlighted file on click', async ({ page }) => {
-    const panel = page.getByRole('region', { name: 'Summary' })
+    const panel = page.getByRole('region', { name: 'Verdict' })
     await expect(panel.getByText('Adds a sliding-window rate limiter')).toBeVisible()
     await expect(panel).toHaveScreenshot('summary-panel.png')
     await panel.screenshot({ path: join(docScreenshots, 'summary-panel.png') })

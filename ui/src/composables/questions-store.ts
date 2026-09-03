@@ -15,6 +15,10 @@ export function setWriteToken(token: string) {
   localStorage.setItem(WRITE_TOKEN_KEY, token)
 }
 
+export function getWriteToken(): string {
+  return state.writeToken
+}
+
 async function parseErrorBody(res: Response): Promise<string> {
   const body = await res.json().catch(() => ({}))
   return body.error ?? res.statusText

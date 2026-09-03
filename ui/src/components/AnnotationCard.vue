@@ -3,9 +3,11 @@ import { computed, ref, watch } from 'vue'
 import type { Annotation } from '../types.ts'
 import { anchorId } from '../diff-layout.ts'
 import { renderMarkdown } from '../markdown.ts'
-import { highlightCode } from '../highlight.ts'
 import { resolveTargetPreview } from '../target-preview.ts'
 import { currentFiles } from '../composables/view-model-store.ts'
+import { isNoteResolved, toggleNoteResolved } from '../composables/review-state-store.ts'
+import AskQuestionForm from './AskQuestionForm.vue'
+import DiffLinesPreview from './DiffLinesPreview.vue'
 import { splitHeadline } from '../annotation-view.ts'
 
 const props = withDefaults(
@@ -55,13 +57,36 @@ function previewFor(i: number) {
   const related = props.annotation.relatedTargets?.[i]
   return related ? resolveTargetPreview(currentFiles.value, related.target) : null
 }
+
+const resolved = computed(() => isNoteResolved(props.annotation.id))
+
+// Shown inline instead of forcing a "→ jump to diff" navigation, which — inside
+// FocusMode — meant leaving the walkthrough entirely just to see the code a note
+// is about. Only resolves for `hunk`/`line` targets; a plain `file` target still
+// has nothing more specific to preview.
+const diffOpen = ref(false)
+const mainPreview = computed(() => resolveTargetPreview(currentFiles.value, props.annotation.target))
+watch(
+  () => props.annotation.id,
+  () => {
+    diffOpen.value = false
+  },
+)
 </script>
 
 <template>
-  <article class="rounded-lg border border-default bg-elevated p-4">
+  <article class="rounded-lg border p-4" :class="resolved ? 'border-success bg-success/5' : 'border-default bg-elevated'">
     <div class="mb-1 flex flex-wrap items-start justify-between gap-2">
       <h3 class="text-sm font-semibold text-highlighted">{{ split.headline }}</h3>
-      <UBadge v-if="annotation.kind" size="sm" variant="subtle" color="primary">{{ annotation.kind }}</UBadge>
+      <span class="flex items-center gap-2">
+        <UBadge v-if="annotation.kind" size="sm" variant="subtle" color="primary">{{ annotation.kind }}</UBadge>
+        <UCheckbox
+          :model-value="resolved"
+          label="Resolved"
+          size="sm"
+          @update:model-value="toggleNoteResolved(annotation.id)"
+        />
+      </span>
     </div>
 
     <button
@@ -106,25 +131,22 @@ function previewFor(i: number) {
           → {{ related.target.path }}
         </button>
         <span class="text-muted"> — {{ related.reason }}</span>
-        <div
-          v-if="hoveredIndex === i && previewFor(i)"
-          class="mt-1 max-w-full overflow-x-auto rounded border border-default bg-default p-1.5 font-mono text-[10px]"
-        >
-          <div
-            v-for="line in previewFor(i)!.lines"
-            :key="line.id"
-            class="whitespace-pre"
-            :class="{ 'bg-success/10': line.kind === 'add', 'bg-error/10': line.kind === 'remove' }"
-          >
-            <span class="mr-1.5 select-none text-dimmed">{{ line.kind === 'add' ? '+' : line.kind === 'remove' ? '−' : ' ' }}</span
-            ><code v-html="highlightCode(line.text)"></code>
-          </div>
-        </div>
+        <DiffLinesPreview v-if="hoveredIndex === i && previewFor(i)" class="mt-1" :lines="previewFor(i)!.lines" />
       </li>
     </ul>
 
-    <button type="button" class="text-xs font-medium text-primary hover:underline" @click="jump(annotation.target.path)">
-      → jump to diff
-    </button>
+    <div class="flex items-center gap-3">
+      <button v-if="mainPreview" type="button" class="text-xs font-medium text-primary hover:underline" @click="diffOpen = !diffOpen">
+        {{ diffOpen ? '▾ close diff preview' : '▸ preview diff' }}
+      </button>
+      <button type="button" class="text-xs font-medium text-primary hover:underline" @click="jump(annotation.target.path)">
+        → jump to diff
+      </button>
+    </div>
+    <DiffLinesPreview v-if="diffOpen && mainPreview" class="mt-2" :lines="mainPreview.lines" />
+
+    <div class="mt-3 border-t border-default pt-2">
+      <AskQuestionForm :target="annotation.target" :annotation="annotation" />
+    </div>
   </article>
 </template>

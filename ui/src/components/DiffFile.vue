@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { Answer, Question, RenderedFile } from '../types.ts'
 import { anchorId } from '../diff-layout.ts'
 import { isFileCollapsed, toggleFile } from '../composables/expanded-files-store.ts'
+import { isFileReviewed, toggleFileReviewed } from '../composables/review-state-store.ts'
 import { countAdditions, countDeletions, shouldCollapseLargeFile, totalHunkLines } from '../diff-file-stats.ts'
 import { fileLevelAnnotations, lineLevelAnnotations } from '../file-annotations.ts'
 import { fileLevelQuestions, scrollToLineInFile } from '../question-entries.ts'
@@ -24,15 +25,20 @@ const props = defineProps<{
 const additions = computed(() => countAdditions(props.file))
 const deletions = computed(() => countDeletions(props.file))
 const totalLines = computed(() => totalHunkLines(props.file))
-const collapsed = computed(() => isFileCollapsed(props.file.path, shouldCollapseLargeFile(props.file)))
+const reviewed = computed(() => isFileReviewed(props.file.path))
+const collapsed = computed(() => isFileCollapsed(props.file.path, shouldCollapseLargeFile(props.file) || reviewed.value))
 const annotationsAtFileLevel = computed(() => fileLevelAnnotations(props.file))
 const annotationsAtLineLevel = computed(() => lineLevelAnnotations(props.file))
 const questionsAtFileLevel = computed(() => fileLevelQuestions(props.questions, props.file.path))
 </script>
 
 <template>
-  <article :id="anchorId(file.path)" class="mb-6 overflow-hidden rounded-lg border border-default">
-    <header class="flex items-center gap-3 border-b border-default bg-elevated px-4 py-2">
+  <article
+    :id="anchorId(file.path)"
+    class="mb-6 overflow-hidden rounded-lg border"
+    :class="reviewed ? 'border-success bg-success/5' : 'border-default'"
+  >
+    <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-default bg-elevated px-4 py-2" :class="{ 'bg-success/10': reviewed }">
       <span class="text-dimmed">◇</span>
       <strong class="truncate font-mono text-sm">{{ file.path }}</strong>
       <span class="ml-auto flex items-center gap-2">
@@ -40,6 +46,12 @@ const questionsAtFileLevel = computed(() => fileLevelQuestions(props.questions, 
         <template v-else>
           <UBadge color="success" variant="subtle" size="sm">+{{ additions }}</UBadge>
           <UBadge color="error" variant="subtle" size="sm">−{{ deletions }}</UBadge>
+          <UCheckbox
+            :model-value="reviewed"
+            label="Reviewed"
+            size="sm"
+            @update:model-value="toggleFileReviewed(file.path)"
+          />
           <UButton
             :icon="collapsed ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
             size="xs"

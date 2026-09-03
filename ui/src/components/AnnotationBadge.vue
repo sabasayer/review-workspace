@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { Annotation } from '../types.ts'
 import { anchorId } from '../diff-layout.ts'
 import { renderMarkdown } from '../markdown.ts'
 import { highlightCode } from '../highlight.ts'
 import { resolveTargetPreview } from '../target-preview.ts'
 import { currentFiles } from '../composables/view-model-store.ts'
+import { isNoteResolved, toggleNoteResolved } from '../composables/review-state-store.ts'
+import AskQuestionForm from './AskQuestionForm.vue'
 
 const props = defineProps<{ annotation: Annotation; number: number }>()
+
+const resolved = computed(() => isNoteResolved(props.annotation.id))
 
 // Deliberately doesn't close the popover before scrolling — Reka UI's FocusScope
 // restores focus to this badge on close (for a11y), and closing first meant fighting
@@ -34,8 +38,11 @@ function previewFor(i: number) {
   <UPopover class="ml-1 inline-grid align-middle">
     <button
       type="button"
-      class="grid h-[18px] w-[18px] place-items-center rounded-full border border-warning/60 bg-warning/15 text-[10px] font-bold text-warning transition hover:scale-110 hover:bg-warning hover:text-inverted focus-visible:scale-110 focus-visible:bg-warning focus-visible:text-inverted focus-visible:outline-none"
-      :aria-label="`Note ${number}: ${annotation.summary}`"
+      class="grid h-[18px] w-[18px] place-items-center rounded-full border text-[10px] font-bold transition hover:scale-110 focus-visible:scale-110 focus-visible:outline-none"
+      :class="resolved
+        ? 'border-success/60 bg-success/15 text-success hover:bg-success hover:text-inverted focus-visible:bg-success focus-visible:text-inverted'
+        : 'border-warning/60 bg-warning/15 text-warning hover:bg-warning hover:text-inverted focus-visible:bg-warning focus-visible:text-inverted'"
+      :aria-label="`Note ${number}${resolved ? ' (resolved)' : ''}: ${annotation.summary}`"
     >
       {{ number }}
     </button>
@@ -43,6 +50,13 @@ function previewFor(i: number) {
       <div class="w-80 max-h-96 overflow-y-auto p-3 text-left font-sans text-xs whitespace-normal break-words normal-case select-text">
         <span class="mb-1.5 flex items-center gap-2">
           <UBadge size="sm" variant="subtle" color="primary">{{ annotation.kind ?? 'note' }}</UBadge>
+          <UCheckbox
+            class="ml-auto"
+            :model-value="resolved"
+            label="Resolved"
+            size="sm"
+            @update:model-value="toggleNoteResolved(annotation.id)"
+          />
         </span>
         <div class="markdown-body text-muted" v-html="renderMarkdown(annotation.summary)" />
         <ul v-if="annotation.relatedTargets?.length" class="mt-2 space-y-1 border-t border-default pt-2">
@@ -77,6 +91,10 @@ function previewFor(i: number) {
             </div>
           </li>
         </ul>
+
+        <div class="mt-2 border-t border-default pt-2">
+          <AskQuestionForm :target="annotation.target" :annotation="annotation" />
+        </div>
       </div>
     </template>
   </UPopover>
