@@ -1,6 +1,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { fetchView } from '../api.ts'
 import { loadQuestions } from './questions-store.ts'
+import { loadReviewState } from './review-state-store.ts'
 import { currentFiles } from './view-model-store.ts'
 import type { ViewModel } from '../types.ts'
 
@@ -23,6 +24,7 @@ export function useReviewView() {
   }
 
   onMounted(async () => {
+    await loadReviewState()
     await refresh()
     pollTimer = setInterval(refresh, POLL_INTERVAL_MS)
   })

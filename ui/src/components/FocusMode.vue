@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import type { Annotation, RenderedFile, RenderedGroup } from '../types.ts'
 import AnnotationCard from './AnnotationCard.vue'
+import AskQuestionForm from './AskQuestionForm.vue'
 import { collectVerificationEntries, groupRiskLookup, startHere } from '../annotation-view.ts'
 
 // `currentId` (a Verification item id, not a raw index) is owned by the parent
@@ -76,7 +77,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         :jump-to-diff="(path) => emit('exit', path)"
       />
       <div v-else class="rounded-lg border border-default bg-elevated p-4 text-sm text-muted">
-        {{ current?.verification.description }}
+        <p class="mb-3">{{ current?.verification.description }}</p>
+        <div v-if="current" class="border-t border-default pt-2">
+          <AskQuestionForm :target="{ type: 'file', path: current.path }" />
+        </div>
       </div>
 
       <button
