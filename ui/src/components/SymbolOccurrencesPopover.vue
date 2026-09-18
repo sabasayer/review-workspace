@@ -8,10 +8,14 @@ async function goTo(path: string, hunkIndex: number, lineId: string) {
   closeSymbolLookup()
   await scrollToLineInFile(path, hunkIndex, lineId)
 }
+
+function onOpenChange(open: boolean) {
+  if (!open) closeSymbolLookup()
+}
 </script>
 
 <template>
-  <UPopover :open="state.open" @update:open="(v) => !v && closeSymbolLookup()">
+  <UPopover :open="state.open" @update:open="onOpenChange">
     <span class="pointer-events-none fixed h-0 w-0" :style="{ left: `${state.x}px`, top: `${state.y}px` }" />
     <template #content>
       <div class="max-h-72 w-80 overflow-y-auto p-2 font-mono text-xs">
