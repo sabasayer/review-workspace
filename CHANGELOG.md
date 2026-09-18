@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/sabasayer/review-workspace/compare/v1.10.0...v1.10.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* **ui:** type the symbol popover's open-change handler ([020ef03](https://github.com/sabasayer/review-workspace/commit/020ef0345642e44c0995adab97ea8ae5fc86186e))
+
 # [1.10.0](https://github.com/sabasayer/review-workspace/compare/v1.9.0...v1.10.0) (2026-09-18)
 
 
