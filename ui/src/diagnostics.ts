@@ -18,5 +18,7 @@ export function formatDiagnosticLabel(d: Diagnostic): string {
       return `Asset too large (${d.bytes} bytes): ${d.assetPath}`
     case 'dangling-answer':
       return `Answer ${d.answerId} references unknown Question ${d.questionId}`
+    case 'unanchored-verification-gap':
+      return `Verification gap ${d.verificationId} has no concrete anchor: ${d.detail}`
   }
 }
