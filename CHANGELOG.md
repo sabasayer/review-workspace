@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/sabasayer/review-workspace/compare/v1.9.0...v1.10.0) (2026-09-18)
+
+
+### Features
+
+* **ui:** ctrl/cmd+click a symbol to list its occurrences ([c2040fb](https://github.com/sabasayer/review-workspace/commit/c2040fbb313eb3a64edb73015ea58543bae3f0e3))
+
 # [1.9.0](https://github.com/sabasayer/review-workspace/compare/v1.8.0...v1.9.0) (2026-09-03)
 
 
