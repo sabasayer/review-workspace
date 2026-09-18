@@ -7,6 +7,7 @@ import MrDetailsSlideover from '../components/MrDetailsSlideover.vue'
 import QuestionsSlideover from '../components/QuestionsSlideover.vue'
 import ReviewHeader from '../components/ReviewHeader.vue'
 import Sidebar from '../components/Sidebar.vue'
+import SymbolOccurrencesPopover from '../components/SymbolOccurrencesPopover.vue'
 import VerdictPanel from '../components/VerdictPanel.vue'
 import { useCopyFeedback } from '../composables/useCopyFeedback.ts'
 import { useReviewView } from '../composables/useReviewView.ts'
@@ -109,6 +110,8 @@ async function onQuestionSelect(entry: (typeof questionEntries.value)[number]) {
       @copy-prompt="copyPrompt"
       @save-write-token="saveWriteToken"
     />
+
+    <SymbolOccurrencesPopover />
 
     <MrDetailsSlideover
       v-if="comparison"

@@ -6,6 +6,7 @@ import { expandHunk, isHunkExpanded } from '../composables/expanded-hunks-store.
 import { highlightCode } from '../highlight.ts'
 import { questionsForLine } from '../question-entries.ts'
 import { hiddenLineCount, visibleSlice } from '../hunk-visibility.ts'
+import { handleSymbolClick } from '../symbol-occurrences.ts'
 import { useSyncedScroll } from '../composables/useSyncedScroll.ts'
 import DiffLineNote from './DiffLineNote.vue'
 import QuestionThread from './QuestionThread.vue'
@@ -67,7 +68,7 @@ function hiddenRows(hunkIndex: number): number {
               </span>
               <span class="table-cell whitespace-pre px-2 align-baseline text-[var(--syntax-text)]">
                 <template v-if="row.left">
-                  <code v-html="highlightCode(row.left.text)"></code>
+                  <code v-html="highlightCode(row.left.text)" @click="handleSymbolClick"></code>
                   <DiffLineNote :annotations="row.left.annotations" :diagnostics="row.left.diagnostics" :numbers="annotationNumbers" />
                 </template>
               </span>
@@ -108,7 +109,7 @@ function hiddenRows(hunkIndex: number): number {
               </span>
               <span class="table-cell whitespace-pre px-2 align-baseline text-[var(--syntax-text)]">
                 <template v-if="row.right">
-                  <code v-html="highlightCode(row.right.text)"></code>
+                  <code v-html="highlightCode(row.right.text)" @click="handleSymbolClick"></code>
                   <DiffLineNote :annotations="row.right.annotations" :diagnostics="row.right.diagnostics" :numbers="annotationNumbers" />
                 </template>
               </span>

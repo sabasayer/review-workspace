@@ -6,6 +6,7 @@ import { expandHunk, isHunkExpanded } from '../composables/expanded-hunks-store.
 import { highlightCode } from '../highlight.ts'
 import { buildLineTarget, questionsForLine } from '../question-entries.ts'
 import { hiddenLineCount, visibleSlice } from '../hunk-visibility.ts'
+import { handleSymbolClick } from '../symbol-occurrences.ts'
 import DiffLineNote from './DiffLineNote.vue'
 import QuestionThread from './QuestionThread.vue'
 
@@ -62,7 +63,7 @@ const filePath = computed(() => props.file.path)
             />
           </span>
           <span class="table-cell whitespace-pre px-2 align-baseline text-[var(--syntax-text)]">
-            <code v-html="highlightCode(line.text)"></code>
+            <code v-html="highlightCode(line.text)" @click="handleSymbolClick"></code>
             <DiffLineNote :annotations="line.annotations" :diagnostics="line.diagnostics" :numbers="annotationNumbers" />
           </span>
         </div>
