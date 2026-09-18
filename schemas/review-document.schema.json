@@ -154,7 +154,8 @@
         "id": { "type": "string", "minLength": 1 },
         "description": { "type": "string", "minLength": 1 },
         "status": { "enum": ["unverified", "verified", "gap"] },
-        "targetIds": { "type": "array", "items": { "type": "string" } }
+        "targetIds": { "type": "array", "items": { "type": "string" } },
+        "diffuse": { "type": "boolean" }
       }
     },
     "answer": {

@@ -47,6 +47,20 @@
       "kind": "observed",
       "description": "References an asset that was never added to assets/",
       "assetPath": "missing.png"
+    },
+    {
+      "id": "ev-2",
+      "kind": "observed",
+      "description": "Anchored at the file directly, for a Verification item that names this Evidence instead of an Annotation",
+      "targetIds": ["src/auth/login.ts"]
     }
+  ],
+  "verification": [
+    { "id": "vi-empty", "description": "Gap with no targetIds at all", "status": "gap" },
+    { "id": "vi-dangling", "description": "Gap whose targetIds only name a Behavioral Group, not a place", "status": "gap", "targetIds": ["bg-1"] },
+    { "id": "vi-diffuse", "description": "Genuinely diffuse concern, opted out", "status": "gap", "targetIds": [], "diffuse": true },
+    { "id": "vi-anchored-annotation", "description": "Gap anchored via an Annotation id", "status": "gap", "targetIds": ["an-2"] },
+    { "id": "vi-anchored-evidence", "description": "Gap anchored via an Evidence id that itself resolves to a file", "status": "gap", "targetIds": ["ev-2"] },
+    { "id": "vi-unverified-dangling", "description": "Not a gap, so an unanchored targetIds is not flagged", "status": "unverified", "targetIds": ["bg-1"] }
   ]
 }

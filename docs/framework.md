@@ -88,6 +88,8 @@ Annotations, Questions, Answers, and comments use typed Targets:
 
 Line Targets carry expected text so the validator can detect stale or incorrect references. Unresolved Targets produce visible Diagnostics.
 
+A Verification item has no Target of its own — only `targetIds` naming an Annotation, an Evidence item, or a file path. When a `gap` item's `targetIds` are empty or resolve to nothing concrete (unset `diffuse`), the validator emits an `unanchored-verification-gap` Diagnostic rather than letting it render as a dead-end link.
+
 ## Questions and answers
 
 Questions are immutable append-only records. Corrections withdraw a Question and create a replacement. One Answer addresses exactly one Question; follow-ups are new Questions that may reference a prior Question.

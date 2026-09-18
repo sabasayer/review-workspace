@@ -7,3 +7,4 @@ export type Diagnostic =
   | { kind: 'disallowed-asset-type'; assetPath: string }
   | { kind: 'asset-too-large'; assetPath: string; bytes: number }
   | { kind: 'dangling-answer'; answerId: string; questionId: string }
+  | { kind: 'unanchored-verification-gap'; verificationId: string; detail: string }
