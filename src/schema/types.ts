@@ -66,6 +66,8 @@ export interface VerificationItem {
   description: string
   status: 'unverified' | 'verified' | 'gap'
   targetIds?: string[]
+  /** Opts a `gap` with no concrete anchor out of `unanchored-verification-gap` — for a concern that's genuinely not about one place (a missing dashboard, an unrunnable pipeline), not a stand-in for writing the anchor. */
+  diffuse?: boolean
 }
 
 export interface Answer {

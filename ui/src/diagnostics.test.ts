@@ -18,4 +18,10 @@ describe('formatDiagnosticLabel', () => {
   it('formats missing assets', () => {
     expect(formatDiagnosticLabel({ kind: 'missing-asset', assetPath: 'snap.png' })).toBe('Missing asset: snap.png')
   })
+
+  it('formats unanchored verification gaps', () => {
+    expect(formatDiagnosticLabel({ kind: 'unanchored-verification-gap', verificationId: 'vi-1', detail: 'targetIds is empty' })).toBe(
+      'Verification gap vi-1 has no concrete anchor: targetIds is empty',
+    )
+  })
 })

@@ -1,6 +1,6 @@
 import { existsSync, statSync } from 'node:fs'
 import { validateReviewDocumentSchema } from '../schema/validate.ts'
-import type { ReviewDocument, Target } from '../schema/types.ts'
+import type { Evidence, ReviewDocument, Target } from '../schema/types.ts'
 import type { ParsedPatch, PatchFile } from '../patch/types.ts'
 import type { Diagnostic } from './diagnostics.ts'
 import { resolveAssetPath } from '../security/asset-path.ts'
@@ -79,6 +79,18 @@ export function resolveTarget(target: Target, patch: ParsedPatch): Diagnostic | 
   return undefined
 }
 
+// A Verification item's targetIds may name an Annotation id, an Evidence id, or a file
+// path directly (see render.ts's buildVerificationByTargetId) — none of which is itself
+// a guarantee of a concrete place. An Evidence id only anchors if that Evidence's own
+// targetIds resolve to an Annotation or a file in turn; anything else (a Behavioral Group
+// id, a dangling id) resolves to nowhere the reviewer can be sent.
+function isConcreteAnchor(id: string, annotationIds: Set<string>, evidenceById: Map<string, Evidence>, filePaths: Set<string>): boolean {
+  if (annotationIds.has(id) || filePaths.has(id)) return true
+  const evidence = evidenceById.get(id)
+  if (!evidence) return false
+  return (evidence.targetIds ?? []).some((innerId) => annotationIds.has(innerId) || filePaths.has(innerId))
+}
+
 export function collectDiagnostics(
   document: ReviewDocument,
   patch: ParsedPatch,
@@ -123,6 +135,21 @@ export function collectDiagnostics(
     for (const answer of document.answers) {
       if (!questionIds.has(answer.questionId)) {
         diagnostics.push({ kind: 'dangling-answer', answerId: answer.id, questionId: answer.questionId })
+      }
+    }
+  }
+
+  if (document.verification?.length) {
+    const annotationIds = new Set((document.annotations ?? []).map((a) => a.id))
+    const evidenceById = new Map((document.evidence ?? []).map((e) => [e.id, e]))
+    const filePaths = new Set(patch.files.map((f) => f.path))
+    for (const item of document.verification) {
+      if (item.status !== 'gap' || item.diffuse) continue
+      const ids = item.targetIds ?? []
+      const anchored = ids.some((id) => isConcreteAnchor(id, annotationIds, evidenceById, filePaths))
+      if (!anchored) {
+        const detail = ids.length === 0 ? 'targetIds is empty' : `targetIds ${JSON.stringify(ids)} resolve to no Annotation, Evidence, or file`
+        diagnostics.push({ kind: 'unanchored-verification-gap', verificationId: item.id, detail })
       }
     }
   }

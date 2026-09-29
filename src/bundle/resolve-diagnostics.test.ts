@@ -63,6 +63,36 @@ describe('diagnostics', () => {
     )
   })
 
+  it('flags a gap with no targetIds at all', () => {
+    const result = validateBundle(bundlePath('diagnostics'))
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({ kind: 'unanchored-verification-gap', verificationId: 'vi-empty' }))
+  })
+
+  it('flags a gap whose targetIds only name a Behavioral Group, not a place', () => {
+    const result = validateBundle(bundlePath('diagnostics'))
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({ kind: 'unanchored-verification-gap', verificationId: 'vi-dangling' }))
+  })
+
+  it('does not flag a gap marked diffuse', () => {
+    const result = validateBundle(bundlePath('diagnostics'))
+    expect(result.diagnostics).not.toContainEqual(expect.objectContaining({ verificationId: 'vi-diffuse' }))
+  })
+
+  it('does not flag a gap anchored via an Annotation id', () => {
+    const result = validateBundle(bundlePath('diagnostics'))
+    expect(result.diagnostics).not.toContainEqual(expect.objectContaining({ verificationId: 'vi-anchored-annotation' }))
+  })
+
+  it('does not flag a gap anchored via an Evidence id that itself resolves to a file', () => {
+    const result = validateBundle(bundlePath('diagnostics'))
+    expect(result.diagnostics).not.toContainEqual(expect.objectContaining({ verificationId: 'vi-anchored-evidence' }))
+  })
+
+  it('does not flag a dangling targetIds on a non-gap Verification item', () => {
+    const result = validateBundle(bundlePath('diagnostics'))
+    expect(result.diagnostics).not.toContainEqual(expect.objectContaining({ verificationId: 'vi-unverified-dangling' }))
+  })
+
   it('flags an Answer referencing a Question that was never raised', () => {
     const result = validateBundle(bundlePath('dangling-answer'))
     expect(result.valid).toBe(true)
