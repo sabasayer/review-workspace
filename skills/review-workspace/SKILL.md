@@ -1,6 +1,6 @@
 ---
 name: review-workspace
-description: Acts as the Generator for a Review Workspace bundle. Use when the user asks to generate, update, or improve a Review Bundle, points at a bundle path, pastes a GitLab/GitHub MR or PR URL and asks to review/analyze it, or pastes the workspace's "Invoke the /review-workspace skill on this bundle <path>" prompt.
+description: Reviews a GitLab/GitHub MR or PR and, only when it helps, opens it in the Review Workspace UI. Use when the user asks to review/analyze an MR or PR (pasted URL), or to generate, update, or improve a Review Bundle, points at a bundle path, or pastes the workspace's "Invoke the /review-workspace skill on this bundle <path>" prompt. Review always produces text findings first; the bundle and UI are optional. Pass --no-ui to get the text findings only.
 ---
 
 # Review workspace (Generator)
@@ -24,21 +24,43 @@ Ask only for inputs that cannot be inferred: which Comparison (MR/PR/branch/comm
 
 ## Reviewing an MR/PR end-to-end
 
-The Generator role above only covers producing `review.next.json`. Starting from just a pasted MR/PR URL, the actual end-to-end flow is:
+The flow has two parts. Part 1 (review) always runs. Part 2 (UI) runs only when there are findings and the user says yes.
 
-1. **Pick a bundle directory.** Anywhere local works — e.g. `.bundles/<repo-name>-<mr-number>/` in your current project (e.g. `.bundles/xds-widgets-32/`). Nothing needs to already exist there.
-2. **Scaffold the bundle:**
-   - Fetch the diff: `glab mr diff <N> -R <group>/<project> > .bundles/<name>/changes.diff` (GitHub: `gh pr diff <N> -R <owner>/<repo>` instead). Handles both git `diff --git` and bare `---`/`+++` formats — the engine's parser accepts either.
-   - Fetch the MR's metadata: `glab api projects/<url-encoded-group%2Fproject>/merge_requests/<N>` (GitHub: `gh api repos/<owner>/<repo>/pulls/<N>`) — pull `diff_refs.base_sha`/`head_sha`, `title`, `iid`, `web_url`, `author.name`/`username`, `source_branch`, `target_branch`, `description`.
-   - Write `.bundles/<name>/review.json` with just `{ schemaVersion: 1, comparison: { repository, base, head, title, number, url, author, sourceBranch, targetBranch, description } }` — this is the *only* file you hand-write; everything else is the Generator's job below.
-   - If the description references uploaded images (`/uploads/<hash>/<file>`), fetch them via `glab api projects/<...>/uploads/<hash>/<file>` into `.bundles/<name>/assets/uploads/<hash>/<file>` — a browser `<img>` pointed straight at gitlab.com gets blocked by ORB for private repos (no session cookie flows to a subresource request); routing through the bundle's own `assets/` and the engine's same-origin `/assets/*` route avoids that entirely.
-   - Validate it opens: `npx review-workspace open .bundles/<name>` should print "Bundle is valid."
-3. **Invoke the Generator** (the rest of this document) against that bundle path — it reads `changes.diff`, writes `review.next.json`, and runs `npx review-workspace publish <bundle>`.
-4. **Serve it**: `npx review-workspace serve .bundles/<name> --port 4317` — one process, hosts both the API and the UI. Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first; if something's already listening (e.g. a previous bundle), ask the user whether to switch it over or run a second instance on another port. Open the printed `http://127.0.0.1:<port>` URL, and **always pass the printed write token on to the user along with what it's for** — viewing the bundle needs no token, but raising or answering a Question in the UI does, so without it in hand the user can't ask anything back.
+### Part 1: Review (always, text only)
+
+1. Fetch the diff into a temp file, for example `/tmp/<repo-name>-<mr-number>.diff`. GitLab: `glab mr diff <N> -R <group>/<project>`. GitHub: `gh pr diff <N> -R <owner>/<repo>`. Do not create a bundle yet.
+2. Fetch the MR or PR description and discussion. Read them before you judge the change.
+3. Analyse the diff. Write each finding as: file, line, problem, suggested fix. Report only real problems. Do not list praise or restatements of the diff.
+4. Report in chat:
+   - **No findings**: say "No findings", add one line on what you checked, and **stop**. Do not scaffold a bundle. Do not start a server.
+   - **Findings**: show the list in chat.
+
+### The `--no-ui` flag
+
+If the caller passes `--no-ui` (or says "no UI", "text only"), stop after step 4. Print the findings, and never ask about the UI. Never scaffold a bundle. Never start a server. Other skills, such as the review step in ship-work, use this to read the text output directly.
+
+### Part 2: UI (optional)
+
+Run this part only if there are findings and `--no-ui` is not set.
+
+1. Ask the user once: "Open these in the review UI?" Do nothing more unless the answer is yes.
+2. **Pick a bundle directory.** Anywhere local works, for example `.bundles/<repo-name>-<mr-number>/` in your current project. Nothing needs to exist there.
+3. **Scaffold the bundle:**
+   - Move the diff from Part 1 to `.bundles/<name>/changes.diff`. The engine accepts both git `diff --git` and bare `---`/`+++` formats.
+   - Fetch the metadata: `glab api projects/<url-encoded-group%2Fproject>/merge_requests/<N>` (GitHub: `gh api repos/<owner>/<repo>/pulls/<N>`). Take `diff_refs.base_sha`/`head_sha`, `title`, `iid`, `web_url`, `author.name`/`username`, `source_branch`, `target_branch`, `description`.
+   - Write `.bundles/<name>/review.json` with just `{ schemaVersion: 1, comparison: { repository, base, head, title, number, url, author, sourceBranch, targetBranch, description } }`. This is the only file you write by hand.
+   - If the description references uploaded images (`/uploads/<hash>/<file>`), fetch them via `glab api projects/<...>/uploads/<hash>/<file>` into `.bundles/<name>/assets/uploads/<hash>/<file>`. A browser `<img>` that points straight at gitlab.com gets blocked by ORB for private repos. The bundle's own `assets/` and the engine's same-origin `/assets/*` route avoid this.
+   - Check it opens: `npx review-workspace open .bundles/<name>` must print "Bundle is valid."
+4. **Invoke the Generator** (the rest of this document) against that bundle path. Carry the Part 1 findings into Annotations. The Generator reads `changes.diff`, writes `review.next.json`, and runs `npx review-workspace publish <bundle>`.
+5. **Serve it**: `npx review-workspace serve .bundles/<name> --port 4317`. Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first. If something already listens, ask the user: switch it over, or use a second port. Open the printed `http://127.0.0.1:<port>` URL. **Always give the user the printed write token and say what it is for.** Viewing needs no token. Raising or answering a Question needs one.
+
+The `.review-feedback/` hand-off file for `address-review-feedback` is still written by `publish`, as described in "Hand-off export". It exists only after Part 2, because it comes from change-request Comments raised in the UI.
 
 For an **existing** bundle someone's already reviewing (Questions raised, feedback on the UI itself), skip straight to invoking the Generator's **Improve** branch — no need to re-scaffold.
 
 ## Generate
+
+This section is Part 2 only. Never start it before the user said yes to the UI, unless they pointed you at an existing bundle or pasted the workspace prompt.
 
 1. Acquire or read the Comparison's complete Unified Patch and any available evidence (issue/MR description, discussion threads — fetch and read these before writing Evidence/Verification, see [FRAMEWORK.md](FRAMEWORK.md)'s non-negotiable #7 and "Discussion Evidence" — pipeline results, base/head image blobs, open Comments — questions and change-requests alike — in `questions.jsonl`).
 2. Build Behavioral Groups: cluster changed files by behavior, assign `risk`, and order them for review (foundational/highest-risk first).
@@ -77,6 +99,7 @@ Always report back where this landed — see "Report back" below.
 
 Report:
 
+- Always: the Part 1 findings (or "No findings"), and whether the UI was offered, accepted, or skipped by `--no-ui`. Skip the rest of this list if no bundle was made.
 - Bundle path and `publish` result (success, or blocking reason/Diagnostics)
 - Comparison identity reviewed (base/head)
 - File, hunk, addition, and deletion reconciliation against the patch
