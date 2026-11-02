@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/sabasayer/review-workspace/compare/v1.11.0...v1.12.0) (2026-11-02)
+
+
+### Features
+
+* **watcher:** show when the watcher stopped ([35e742a](https://github.com/sabasayer/review-workspace/commit/35e742a4bf7ba46ac5e80a296525569048a13c82))
+
 # [1.11.0](https://github.com/sabasayer/review-workspace/compare/v1.10.2...v1.11.0) (2026-11-02)
 
 
