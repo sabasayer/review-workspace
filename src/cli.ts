@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
+import { formatDiagnostic } from './bundle/format-diagnostic.ts'
 import { validateBundle } from './bundle/validate-bundle.ts'
 import { publishBundleAndExportHandoff } from './bundle/publish-with-handoff.ts'
 import { checkRound, scaffoldNextRound } from './bundle/round.ts'
-import { askForRepoPathOnStdin } from './handoff/ask-repo-path.ts'
 import { carryForwardChain } from './bundle/carry-forward.ts'
 import { startReviewServer } from './server/create-server.ts'
 
@@ -20,7 +20,7 @@ function flagValue(name: string): string | undefined {
 }
 
 if (!command || !bundlePath) {
-  fail('Usage: review-workspace <open|publish|serve|round> <bundlePath> [--port N] [--live-head SHA --patch FILE]')
+  fail('Usage: review-workspace <open|publish|serve|round> <bundlePath> [--port N] [--rotate-token] [--repo PATH] [--live-head SHA --patch FILE]')
 }
 
 if (command === 'open') {
@@ -32,15 +32,25 @@ if (command === 'open') {
   console.log('Bundle is valid.')
   if (result.diagnostics?.length) {
     console.log(`${result.diagnostics.length} diagnostic(s) found.`)
+    for (const diagnostic of result.diagnostics) {
+      console.log(`  ${formatDiagnostic(diagnostic)}`)
+    }
   }
 } else if (command === 'publish') {
-  const result = await publishBundleAndExportHandoff(bundlePath, { ask: askForRepoPathOnStdin })
+  const result = await publishBundleAndExportHandoff(bundlePath, { repoPath: flagValue('--repo') })
   if (!result.ok) {
     fail(`Publish rejected: ${result.blockingReason} — ${result.message}`)
   }
   console.log('Published.')
+  for (const diagnostic of result.diagnostics ?? []) {
+    console.log(`  ${formatDiagnostic(diagnostic)}`)
+  }
   if (result.handoff?.written) {
     console.log(`Hand-off file written: ${result.handoff.filePath}`)
+  } else if (result.handoff?.skipped === 'no-repo-path') {
+    console.log('Hand-off skipped: pass --repo <path> to export the open change-requests.')
+  } else if (result.handoff?.skipped === 'not-a-git-repo') {
+    console.log('Hand-off skipped: the --repo path is not a git repository.')
   }
 } else if (command === 'round') {
   const liveHead = flagValue('--live-head')
@@ -59,7 +69,7 @@ if (command === 'open') {
   }
 } else if (command === 'serve') {
   const port = Number(flagValue('--port') ?? 4317)
-  const handle = await startReviewServer(bundlePath, { port })
+  const handle = await startReviewServer(bundlePath, { port, rotateToken: rest.includes('--rotate-token'), repoPath: flagValue('--repo') })
   console.log(JSON.stringify({ port: handle.port, writeToken: handle.writeToken, url: `http://127.0.0.1:${handle.port}` }))
 } else {
   fail(`Unknown command: ${command}`)

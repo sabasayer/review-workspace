@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -57,6 +58,29 @@ describe('startReviewServer', () => {
   it('rejects a mutating request with a wrong write token', async () => {
     const res = await fetch(`${baseUrl()}/publish`, { method: 'POST', headers: { 'x-write-token': 'wrong' } })
     expect(res.status).toBe(401)
+  })
+
+  it('says the write token is invalid for this server', async () => {
+    const res = await fetch(`${baseUrl()}/state`, { method: 'PUT', headers: { 'x-write-token': 'nope' }, body: '{}' })
+    expect(res.status).toBe(401)
+    expect(await res.json()).toEqual({ error: 'invalid write token for this server' })
+  })
+
+  it('keeps the same write token across a restart', async () => {
+    const first = handle.writeToken
+    await handle.close()
+    handle = await startReviewServer(workBundle)
+    expect(handle.writeToken).toBe(first)
+  })
+
+  it('mints a new write token on restart when rotation is requested', async () => {
+    const first = handle.writeToken
+    await handle.close()
+    handle = await startReviewServer(workBundle, { rotateToken: true })
+    expect(handle.writeToken).not.toBe(first)
+    await handle.close()
+    handle = await startReviewServer(workBundle)
+    expect(handle.writeToken).not.toBe(first)
   })
 
   it('accepts a mutating request with the correct write token and produces no side effect on failure', async () => {
@@ -157,6 +181,27 @@ describe('startReviewServer', () => {
     expect(list.find((q: { status: string }) => q.status === 'open').body).toBe('better phrased')
   })
 
+  it('deletes a Question without a replacement when the withdraw body is empty', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'no longer needed' }),
+      })
+    ).json()
+
+    const deleted = await fetch(`${baseUrl()}/questions/${created.id}/withdraw`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+      body: '{}',
+    })
+    expect(deleted.status).toBe(200)
+
+    const list = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(list).toHaveLength(1)
+    expect(list[0].status).toBe('withdrawn')
+  })
+
   it('raises a change-request Comment via the API, round-tripping kind', async () => {
     const created = await fetch(`${baseUrl()}/questions`, {
       method: 'POST',
@@ -180,6 +225,37 @@ describe('startReviewServer', () => {
     })
     const comment = await created.json()
     expect(comment.kind).toBe('question')
+  })
+
+  it('raises a general-Target Comment and shows it in the list', async () => {
+    const created = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'add a changelog', target: { type: 'general' }, kind: 'change-request' }),
+    })
+    expect(created.status).toBe(201)
+    const list = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(list[0]).toMatchObject({ target: { type: 'general' }, kind: 'change-request' })
+  })
+
+  it('rejects a Comment with a malformed Target and writes nothing', async () => {
+    const res = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'text', target: { type: 'line', path: 'a.ts' } }),
+    })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toContain('target')
+    expect(existsSync(join(workBundle, 'questions.jsonl'))).toBe(false)
+  })
+
+  it('rejects a rephrased Question with a malformed Target', async () => {
+    const res = await fetch(`${baseUrl()}/questions/some-id/withdraw`, {
+      method: 'POST',
+      headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'text', target: 'nope' }),
+    })
+    expect(res.status).toBe(400)
   })
 
   it('rejects an unrecognized kind value', async () => {
@@ -252,6 +328,25 @@ describe('startReviewServer', () => {
     expect(readFileSync(logPath, 'utf-8')).toBe(before)
     const list = await (await fetch(`${baseUrl()}/questions`)).json()
     expect(list.find((c: { id: string }) => c.id === created.id).resolved).toBe(false)
+  })
+
+  it('lists a resolved change-request with status resolved, also after a restart', async () => {
+    const created = await (
+      await fetch(`${baseUrl()}/questions`, {
+        method: 'POST',
+        headers: { 'x-write-token': handle.writeToken, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: 'fix it', kind: 'change-request' }),
+      })
+    ).json()
+    await fetch(`${baseUrl()}/questions/${created.id}/resolve`, { method: 'POST', headers: { 'x-write-token': handle.writeToken } })
+
+    const listed = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(listed.find((c: { id: string }) => c.id === created.id)).toMatchObject({ status: 'resolved', resolved: true })
+
+    await handle.close()
+    handle = await startReviewServer(workBundle)
+    const relisted = await (await fetch(`${baseUrl()}/questions`)).json()
+    expect(relisted.find((c: { id: string }) => c.id === created.id).status).toBe('resolved')
   })
 
   it('rejects resolving an already-resolved change-request with a non-200 status, without writing again to the log', async () => {
@@ -372,7 +467,7 @@ describe('GET /assets/*', () => {
   let imageHandle: ReviewServerHandle
 
   beforeEach(async () => {
-    imageHandle = await startReviewServer(imagePairBundle)
+    imageHandle = await startReviewServer(imagePairBundle, { writeToken: 'test-token' })
   })
 
   afterEach(async () => {
@@ -404,29 +499,21 @@ describe('GET /assets/*', () => {
 
 describe('POST /publish hand-off export', () => {
   let repoDir: string
-  let cachePath: string
   let handoffHandle: ReviewServerHandle
 
   beforeEach(async () => {
     const parent = mkdtempSync(join(tmpdir(), 'review-workspace-handoff-server-'))
     repoDir = join(parent, 'target-repo')
     mkdirSync(repoDir, { recursive: true })
-    cachePath = join(parent, 'repo-paths.json')
+    execFileSync('git', ['init', '-q'], { cwd: repoDir })
   })
 
   afterEach(async () => {
     await handoffHandle?.close()
   })
 
-  it('writes the hand-off file and gitignores it in the target repo when publishing with an open change-request', async () => {
-    let askedFor: string | undefined
-    handoffHandle = await startReviewServer(workBundle, {
-      askForRepoPath: async (repoSlug) => {
-        askedFor = repoSlug
-        return repoDir
-      },
-      repoPathCachePath: cachePath,
-    })
+  it('writes the hand-off file and excludes it locally in the target repo when publishing with an open change-request', async () => {
+    handoffHandle = await startReviewServer(workBundle, { repoPath: repoDir })
 
     await fetch(`http://127.0.0.1:${handoffHandle.port}/questions`, {
       method: 'POST',
@@ -450,22 +537,15 @@ describe('POST /publish hand-off export', () => {
     const body = await res.json()
     expect(body.handoff.written).toBe(true)
 
-    expect(askedFor).toBe('example/widgets')
     const filePath = join(repoDir, '.review-feedback', '99-round1.md')
     expect(existsSync(filePath)).toBe(true)
     expect(readFileSync(filePath, 'utf-8')).toContain('please add error handling here')
-    expect(readFileSync(join(repoDir, '.gitignore'), 'utf-8')).toBe('.review-feedback/\n')
+    expect(readFileSync(join(repoDir, '.git', 'info', 'exclude'), 'utf-8')).toContain('.review-feedback/')
+    expect(existsSync(join(repoDir, '.gitignore'))).toBe(false)
   })
 
-  it('does not write a hand-off file or ask for a repo path when there are no open change-requests', async () => {
-    let askCalled = false
-    handoffHandle = await startReviewServer(workBundle, {
-      askForRepoPath: async () => {
-        askCalled = true
-        return repoDir
-      },
-      repoPathCachePath: cachePath,
-    })
+  it('does not write a hand-off file when there are no open change-requests', async () => {
+    handoffHandle = await startReviewServer(workBundle, { repoPath: repoDir })
 
     writeFileSync(
       join(workBundle, 'review.next.json'),
@@ -479,7 +559,6 @@ describe('POST /publish hand-off export', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.handoff).toEqual({ written: false })
-    expect(askCalled).toBe(false)
     expect(existsSync(join(repoDir, '.review-feedback'))).toBe(false)
   })
 })
@@ -549,5 +628,150 @@ describe('round-N carry-forward', () => {
   it('GET /document exposes the round\'s own comparison alongside the previous-round chain', async () => {
     const document = await (await fetch(`${roundBaseUrl()}/document`)).json()
     expect(document.document.comparison.head).toBe('head2222')
+  })
+})
+
+describe('GET /live-head', () => {
+  it('reports absent when the bundle has no live-head.json', async () => {
+    const body = await (await fetch(`${baseUrl()}/live-head`)).json()
+    expect(body).toMatchObject({ status: 'absent', stale: false, round: 1 })
+  })
+
+  it('reports stale with the round when the live head differs', async () => {
+    const recordedHead = JSON.parse(readFileSync(join(workBundle, 'review.json'), 'utf-8')).comparison.head
+    writeFileSync(join(workBundle, 'live-head.json'), JSON.stringify({ head: 'new9999', checkedAt: '2026-10-27T09:00:00.000Z' }))
+    const body = await (await fetch(`${baseUrl()}/live-head`)).json()
+    expect(body).toEqual({
+      status: 'ok',
+      liveHead: { head: 'new9999', checkedAt: '2026-10-27T09:00:00.000Z' },
+      recordedHead,
+      stale: true,
+      round: 1,
+    })
+  })
+
+  it('reports not stale when the live head matches', async () => {
+    const recordedHead = JSON.parse(readFileSync(join(workBundle, 'review.json'), 'utf-8')).comparison.head
+    writeFileSync(join(workBundle, 'live-head.json'), JSON.stringify({ head: recordedHead, checkedAt: '2026-10-27T09:00:00.000Z' }))
+    const body = await (await fetch(`${baseUrl()}/live-head`)).json()
+    expect(body).toMatchObject({ status: 'ok', stale: false })
+  })
+
+  it('reports invalid for a broken live-head.json', async () => {
+    writeFileSync(join(workBundle, 'live-head.json'), '{nope')
+    const body = await (await fetch(`${baseUrl()}/live-head`)).json()
+    expect(body).toMatchObject({ status: 'invalid', stale: false })
+  })
+
+  it('reports the round number from chain.json', async () => {
+    writeFileSync(
+      join(workBundle, 'chain.json'),
+      JSON.stringify({ mrKey: 'example/widgets!1', round: 3, previousBundle: '../prev', previousHead: 'old0000' }),
+    )
+    const body = await (await fetch(`${baseUrl()}/live-head`)).json()
+    expect(body.round).toBe(3)
+  })
+
+  it('needs no write token', async () => {
+    expect((await fetch(`${baseUrl()}/live-head`)).status).toBe(200)
+  })
+})
+
+describe('GET /watcher', () => {
+  it('reports absent when the bundle has no watcher.json', async () => {
+    expect(await (await fetch(`${baseUrl()}/watcher`)).json()).toEqual({ status: 'absent' })
+  })
+
+  it('serves the watcher state without a write token', async () => {
+    writeFileSync(join(workBundle, 'watcher.json'), JSON.stringify({ enabled: true, cap: 20, used: 4, current: 'q-9' }))
+    const res = await fetch(`${baseUrl()}/watcher`)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ status: 'ok', watcher: { enabled: true, cap: 20, used: 4, current: 'q-9' } })
+  })
+})
+
+describe('GET /repo-file', () => {
+  let repoDir: string
+  let outsideDir: string
+  let repoHandle: ReviewServerHandle
+
+  beforeEach(async () => {
+    repoDir = mkdtempSync(join(tmpdir(), 'review-workspace-repo-file-'))
+    outsideDir = mkdtempSync(join(tmpdir(), 'review-workspace-repo-outside-'))
+    mkdirSync(join(repoDir, 'utils'))
+    writeFileSync(join(repoDir, 'utils', 'repos.ts'), Array.from({ length: 60 }, (_, i) => `const n${i} = ${i}`).join('\n'))
+    writeFileSync(join(outsideDir, 'secret.txt'), 'secret')
+    symlinkSync(join(outsideDir, 'secret.txt'), join(repoDir, 'link.txt'))
+    repoHandle = await startReviewServer(workBundle, { repoPath: repoDir })
+  })
+
+  afterEach(async () => {
+    await repoHandle.close()
+    rmSync(repoDir, { recursive: true, force: true })
+    rmSync(outsideDir, { recursive: true, force: true })
+  })
+
+  const repoFileUrl = (path: string, lines?: number) =>
+    `http://127.0.0.1:${repoHandle.port}/repo-file?path=${encodeURIComponent(path)}${lines ? `&lines=${lines}` : ''}`
+
+  it('serves the top of a file without a write token', async () => {
+    const res = await fetch(repoFileUrl('utils/repos.ts', 5))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.path).toBe('utils/repos.ts')
+    expect(body.content.split('\n')).toHaveLength(5)
+    expect(body.truncated).toBe(true)
+  })
+
+  it('also answers under the /api prefix', async () => {
+    const res = await fetch(`http://127.0.0.1:${repoHandle.port}/api/repo-file?path=utils/repos.ts`)
+    expect(res.status).toBe(200)
+  })
+
+  it('answers 404 with an error when the server has no --repo', async () => {
+    const res = await fetch(`${baseUrl()}/repo-file?path=utils/repos.ts`)
+    expect(res.status).toBe(404)
+    expect((await res.json()).error).toContain('--repo')
+  })
+
+  it('answers 404 when the path query is missing', async () => {
+    const res = await fetch(`http://127.0.0.1:${repoHandle.port}/repo-file`)
+    expect(res.status).toBe(404)
+  })
+
+  it('answers 404 for a missing file', async () => {
+    expect((await fetch(repoFileUrl('nope.ts'))).status).toBe(404)
+  })
+
+  it('answers 404 for an absolute path', async () => {
+    expect((await fetch(repoFileUrl(join(outsideDir, 'secret.txt')))).status).toBe(404)
+  })
+
+  it('answers 404 for a .. path', async () => {
+    expect((await fetch(repoFileUrl('../secret.txt'))).status).toBe(404)
+    expect((await fetch(repoFileUrl('utils/../../secret.txt'))).status).toBe(404)
+  })
+
+  it('answers 404 for a symlink that leaves the repo', async () => {
+    expect((await fetch(repoFileUrl('link.txt'))).status).toBe(404)
+  })
+
+  it('answers 404 for a directory', async () => {
+    expect((await fetch(repoFileUrl('utils'))).status).toBe(404)
+  })
+
+  it('answers 404 for a file over 256 KB', async () => {
+    writeFileSync(join(repoDir, 'big.txt'), 'x'.repeat(256 * 1024 + 1))
+    expect((await fetch(repoFileUrl('big.txt'))).status).toBe(404)
+  })
+
+  it('answers 404 for a binary file', async () => {
+    writeFileSync(join(repoDir, 'a.bin'), Buffer.from([1, 0, 2]))
+    expect((await fetch(repoFileUrl('a.bin'))).status).toBe(404)
+  })
+
+  it('does not accept writes', async () => {
+    const res = await fetch(repoFileUrl('utils/repos.ts'), { method: 'POST', headers: { 'x-write-token': repoHandle.writeToken } })
+    expect(res.status).toBe(404)
   })
 })

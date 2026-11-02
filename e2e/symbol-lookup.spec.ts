@@ -28,12 +28,12 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('a plain click on a symbol does not open the occurrences popover', async ({ page }) => {
-  await page.getByText('MAX_ATTEMPTS', { exact: true }).first().click()
+  await page.locator('article[id]').getByText('MAX_ATTEMPTS', { exact: true }).first().click()
   await expect(page.getByText(/occurrences? of/)).toHaveCount(0)
 })
 
 test('ctrl/cmd+click on a symbol lists its occurrences and jumps to the chosen one', async ({ page }) => {
-  await page.getByText('MAX_ATTEMPTS', { exact: true }).first().click({ modifiers: ['ControlOrMeta'] })
+  await page.locator('article[id]').getByText('MAX_ATTEMPTS', { exact: true }).first().click({ modifiers: ['ControlOrMeta'] })
 
   const popover = page.getByText('2 occurrences of “MAX_ATTEMPTS”').locator('..')
   await expect(popover).toBeVisible()

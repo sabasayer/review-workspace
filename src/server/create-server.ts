@@ -1,21 +1,23 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { randomBytes } from 'node:crypto'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { validateBundle, type ValidateBundleResult } from '../bundle/validate-bundle.ts'
 import { publishBundleAndExportHandoff } from '../bundle/publish-with-handoff.ts'
 import { watchBundle } from './watch-bundle.ts'
-import { raiseQuestion, resolveComment, withdrawAndReplaceQuestion } from '../questions/questions-log.ts'
+import { raiseQuestion, resolveComment, withdrawAndReplaceQuestion, withdrawQuestion } from '../questions/questions-log.ts'
 import type { CommentKind } from '../questions/types.ts'
-import { askForRepoPathOnStdin } from '../handoff/ask-repo-path.ts'
-import type { AskForRepoPath } from '../handoff/repo-path-cache.ts'
-import { carryForwardChain, listComments } from '../bundle/carry-forward.ts'
+import { buildLiveHeadStatus, readLiveHead } from '../bundle/live-head.ts'
+import { parseCommentTarget } from '../questions/comment-target.ts'
+import { readWatcher } from '../bundle/watcher.ts'
+import { carryForwardChain, listComments, readChain } from '../bundle/carry-forward.ts'
 import { readReviewState, writeReviewState } from '../review-state/review-state.ts'
 import type { ReviewState } from '../review-state/types.ts'
 import { render } from '../renderer/render.ts'
 import type { ReviewDocument } from '../schema/types.ts'
 import { buildReport } from '../export/report.ts'
 import { resolveAssetPath } from '../security/asset-path.ts'
+import { readRepoFileTop } from '../security/repo-file.ts'
+import { loadWriteToken } from './write-token.ts'
 
 export interface ReviewServerHandle {
   server: Server
@@ -27,13 +29,8 @@ export interface ReviewServerHandle {
 export interface ReviewServerOptions {
   port?: number
   writeToken?: string
-  /** Injectable so tests never hit real stdin; defaults to an interactive prompt for CLI/serve use. */
-  askForRepoPath?: AskForRepoPath
-  repoPathCachePath?: string
-}
-
-export function generateWriteToken(): string {
-  return randomBytes(24).toString('hex')
+  rotateToken?: boolean
+  repoPath?: string
 }
 
 const WRITE_TOKEN_HEADER = 'x-write-token'
@@ -96,8 +93,7 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
 }
 
 export function startReviewServer(bundlePath: string, opts: ReviewServerOptions = {}): Promise<ReviewServerHandle> {
-  const writeToken = opts.writeToken ?? generateWriteToken()
-  const askForRepoPath = opts.askForRepoPath ?? askForRepoPathOnStdin
+  const writeToken = opts.writeToken ?? loadWriteToken(bundlePath, { rotate: opts.rotateToken })
 
   // A round-N bundle (has chain.json) carries forward every still-open change-request
   // from the previous round into its own log the moment it's opened — idempotent, so
@@ -140,6 +136,21 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
       return
     }
 
+    if (req.method === 'GET' && url.pathname === '/live-head') {
+      if (!latest.valid) {
+        respond(422, { error: 'bundle is not valid', blockingReason: latest.blockingReason })
+        return
+      }
+      const { comparison } = latest.document as ReviewDocument
+      respond(200, buildLiveHeadStatus(readLiveHead(bundlePath), comparison.head, readChain(bundlePath)?.round ?? 1))
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/watcher') {
+      respond(200, readWatcher(bundlePath))
+      return
+    }
+
     if (req.method === 'GET' && url.pathname === '/questions') {
       respond(200, listComments(bundlePath))
       return
@@ -173,15 +184,29 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
       return
     }
 
+    if (req.method === 'GET' && url.pathname === '/repo-file') {
+      if (!opts.repoPath) {
+        respond(404, { error: 'file preview needs the server to run with --repo' })
+        return
+      }
+      const result = readRepoFileTop(opts.repoPath, url.searchParams.get('path') ?? '', Number(url.searchParams.get('lines') ?? 40))
+      if (!result.ok) {
+        respond(404, { error: `file cannot be read: ${result.reason}` })
+        return
+      }
+      respond(200, result)
+      return
+    }
+
     if (req.method !== 'GET') {
       if (req.headers[WRITE_TOKEN_HEADER] !== writeToken) {
-        respond(401, { error: 'invalid write token' })
+        respond(401, { error: 'invalid write token for this server' })
         return
       }
     }
 
     if (req.method === 'POST' && url.pathname === '/publish') {
-      publishBundleAndExportHandoff(bundlePath, { ask: askForRepoPath, repoPathCachePath: opts.repoPathCachePath })
+      publishBundleAndExportHandoff(bundlePath, { repoPath: opts.repoPath })
         .then((result) => respond(result.ok ? 200 : 422, result))
         .catch((err) => respond(500, { error: err instanceof Error ? err.message : 'publish failed' }))
       return
@@ -199,7 +224,12 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
             respond(400, { error: `kind must be one of ${COMMENT_KINDS.join(', ')}` })
             return
           }
-          respond(201, raiseQuestion(bundlePath, text, target as never, (kind as CommentKind) ?? 'question'))
+          const parsedTarget = parseCommentTarget(target)
+          if (!parsedTarget.ok) {
+            respond(400, { error: parsedTarget.error })
+            return
+          }
+          respond(201, raiseQuestion(bundlePath, text, parsedTarget.target, (kind as CommentKind) ?? 'question'))
         })
         .catch(() => respond(400, { error: 'invalid JSON body' }))
       return
@@ -210,11 +240,20 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
       readJsonBody(req)
         .then((body) => {
           const { body: text, target } = body as { body?: string; target?: unknown }
-          if (typeof text !== 'string' || text.trim() === '') {
-            respond(400, { error: 'body is required for the replacement Question' })
+          if (text === undefined) {
+            respond(200, withdrawQuestion(bundlePath, withdrawMatch[1]))
             return
           }
-          respond(201, withdrawAndReplaceQuestion(bundlePath, withdrawMatch[1], text, target as never))
+          if (typeof text !== 'string' || text.trim() === '') {
+            respond(400, { error: 'body must be a non-empty string when a replacement Question is given' })
+            return
+          }
+          const parsedTarget = parseCommentTarget(target)
+          if (!parsedTarget.ok) {
+            respond(400, { error: parsedTarget.error })
+            return
+          }
+          respond(201, withdrawAndReplaceQuestion(bundlePath, withdrawMatch[1], text, parsedTarget.target))
         })
         .catch(() => respond(400, { error: 'invalid JSON body' }))
       return

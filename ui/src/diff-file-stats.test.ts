@@ -14,6 +14,7 @@ const file: RenderedFile = {
       oldLines: 2,
       newStart: 1,
       newLines: 3,
+      proofs: [],
       lines: [
         { id: '1', kind: 'context', text: 'a', oldLine: 1, newLine: 1, overflowsInline: false, annotations: [], diagnostics: [] },
         { id: '2', kind: 'remove', text: 'b', oldLine: 2, overflowsInline: false, annotations: [], diagnostics: [] },
@@ -23,6 +24,8 @@ const file: RenderedFile = {
   ],
   annotations: [{ id: 'fa', target: { type: 'file', path: 'src/a.ts' }, summary: '', evidence: [], verification: [] }],
   imageEvidence: [],
+  proofs: [],
+  proofFor: [],
   pipelineEvidence: [],
   diagnostics: [],
 }

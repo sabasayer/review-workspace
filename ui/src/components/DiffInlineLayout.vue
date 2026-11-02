@@ -7,7 +7,10 @@ import { highlightCode } from '../highlight.ts'
 import { buildLineTarget, questionsForLine } from '../question-entries.ts'
 import { hiddenLineCount, visibleSlice } from '../hunk-visibility.ts'
 import { handleSymbolClick } from '../symbol-occurrences.ts'
+import { isLineHighlighted } from '../composables/line-highlight-store.ts'
 import DiffLineNote from './DiffLineNote.vue'
+import InlineNote from './InlineNote.vue'
+import ProofIcon from './ProofIcon.vue'
 import QuestionThread from './QuestionThread.vue'
 
 const props = defineProps<{
@@ -39,13 +42,19 @@ const filePath = computed(() => props.file.path)
       <div class="table w-max min-w-full border-collapse">
         <div class="table-caption caption-top whitespace-nowrap bg-elevated px-3 py-1 text-primary">
           @@ -{{ hunk.oldStart }},{{ hunk.oldLines }} +{{ hunk.newStart }},{{ hunk.newLines }} @@
+          <ProofIcon :proofs="hunk.proofs" class="ml-2 align-middle" />
         </div>
         <div
           v-for="line in visibleHunkLines(hi)"
           :id="lineAnchorId(line.id)"
           :key="line.id"
           class="group table-row"
-          :class="{ 'bg-success/10': line.kind === 'add', 'bg-error/10': line.kind === 'remove' }"
+          :class="{
+            'bg-success/10': line.kind === 'add',
+            'bg-error/10': line.kind === 'remove',
+            'line-highlighted': isLineHighlighted(line.id),
+          }"
+          :data-highlighted="isLineHighlighted(line.id) || undefined"
         >
           <span class="table-cell select-none px-2 text-right align-baseline text-dimmed">{{ line.oldLine ?? '' }}</span>
           <span class="table-cell select-none px-2 text-right align-baseline text-dimmed">{{ line.newLine ?? '' }}</span>
@@ -59,12 +68,19 @@ const filePath = computed(() => props.file.path)
             <QuestionThread
               :target="buildLineTarget(filePath, line.text, line.oldLine, line.newLine)"
               :questions="questionsForLine(questions, filePath, line.newLine !== undefined ? 'head' : 'base', line.newLine ?? line.oldLine)"
-              :answers="answers"
             />
           </span>
           <span class="table-cell whitespace-pre px-2 align-baseline text-[var(--syntax-text)]">
             <code v-html="highlightCode(line.text)" @click="handleSymbolClick"></code>
-            <DiffLineNote :annotations="line.annotations" :diagnostics="line.diagnostics" :numbers="annotationNumbers" />
+            <DiffLineNote :annotations="[]" :diagnostics="line.diagnostics" :numbers="annotationNumbers" />
+            <InlineNote
+              v-for="a in line.annotations"
+              :key="a.id"
+              :annotation="a"
+              :number="annotationNumbers.get(a.id) ?? 0"
+              :questions="questions"
+              :answers="answers"
+            />
           </span>
         </div>
       </div>

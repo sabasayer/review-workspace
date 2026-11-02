@@ -1,6 +1,6 @@
 # Review Workspace Generator Framework
 
-Generation and validation decisions for producing a Review Bundle's Review Document. Updated 2026-08-26.
+Generation and validation decisions for producing a Review Bundle's Review Document. Updated 2026-10-27.
 
 This framework covers the **Generator's** job only. The bundle contract, schema, validator, CLI, server, and UI are owned by the [review-workspace engine repo](https://github.com/sabasayer/review-workspace) (see its `docs/framework.md` and ADRs) — this document does not restate or override those; it tells the Generator how to produce content that fits them.
 
@@ -26,14 +26,20 @@ Written to `review.next.json` in the bundle directory, validated against [`schem
 
 ```
 {
-  schemaVersion: 1,
+  schemaVersion: 2,
   comparison: { base, head, repository?, title?, number?, url?, author?, sourceBranch?, targetBranch?, description? },
                                                    // must exactly match the existing review.json's comparison
+                                                   // comparison.number must be a string, like "466". Publish rejects a number.
   behavioralGroups: [
     { id, title, description?, order, risk?: 'low'|'medium'|'high', targets: [Target, ...] }
   ],
   annotations: [
-    { id, target: Target, summary, kind?: 'intent'|'behavior'|'risk', evidenceIds?: [string],
+    { id, target: Target | { type: 'general' }, summary,
+      verdict: 'intended'|'missing'|'wrong'|'extra'|'unclear',
+      severity?: 'low'|'medium'|'high',
+      source?: 'issue'|'mr-text'|'repo-rule'|'nobody',
+      suggestion?: string,                 // required when verdict is 'wrong' or 'missing'
+      kind?: 'intent'|'behavior'|'risk', evidenceIds?: [string],
       relatedTargets?: [{ target: Target, reason }, ...] }
   ],
   evidence: [
@@ -46,9 +52,34 @@ Written to `review.next.json` in the bundle directory, validated against [`schem
   answers: [
     { id, questionId, body, evidenceIds?: [string] }   // questionId must match an id from questions.jsonl
   ],
-  summary?: { text, highlightAnnotationIds?: [string], highlightPaths?: [string] }
+  summary?: { text, highlightAnnotationIds?: [string], highlightPaths?: [string] },
+  intent?: { does, why, doesNot?: [string], sources: [string], weakDescription?: string,
+             visuals?: [{ assetPath, baseAssetPath?, caption, source: 'mr-text'|'snapshot' }, ...] }
 }
 ```
+
+`intent` is the first thing a Reviewer reads. It is for a person who did not write the code and may not know the repo. Use plain words, short sentences, and no repo term that you have not explained. `does` says what the change does, `why` says why, `doesNot` lists what a reader might expect but is not in the change. `sources` is required and names where each claim comes from ("MR text", "Linear ENG-2684", "CODING_STANDARDS.md"). Fetch the linked issue before you write it; do not use the MR text alone. If the MR text is too weak to state the intent, set `weakDescription` to say what is missing.
+
+### Notes (Annotations)
+
+An Annotation is a note. It has separate fields. Do not put them in the `summary` text.
+
+- `verdict` says whether the behaviour is what was asked for. Use `intended`, `missing`, `wrong`, `extra` or `unclear`. It is required.
+- `suggestion` says what to change. It is required when the verdict is `wrong` or `missing`.
+- `severity` says how bad it is: `low`, `medium` or `high`. It is optional.
+- `source` says who asked for the behaviour: `issue`, `mr-text`, `repo-rule` or `nobody`. It is optional.
+- `summary` stays as markdown. Use it for what the code does and what could go wrong.
+
+Set `schemaVersion` to 2 when you write notes. The engine checks `verdict` and `suggestion` only for `schemaVersion` 2 and above. A document with `schemaVersion` 1 stays readable and gets no check for these fields.
+
+### Visuals
+
+`intent.visuals` is an optional list of images for the Reviewer. Use only two sources.
+
+- `mr-text`: an image from the MR text. Save it under `assets/`.
+- `snapshot`: a changed snapshot image from the diff. Set `assetPath` to the head image and `baseAssetPath` to the base image.
+
+Do not add your own app screenshots. A screenshot from your own browser check is `observed` Evidence under `assets/`, with a description of what it shows. It is never a Visual. Give every visual a short `caption`. List MR-text images first, then snapshots. The UI shows at most 3. It puts the rest under "More images". The document has no limit on the count. Paths are relative to `assets/`. A path that does not exist gives a Diagnostic. With no image, leave `visuals` out.
 
 `summary` is a brief, top-of-page orientation so a reviewer can scan intent before diving into the full diff — one or two sentences in `text`, plus `highlightAnnotationIds`/`highlightPaths` pointing at the Annotations and files most worth reading first (usually the ones in the highest-risk/first-ordered Behavioral Group). It must not introduce any claim that isn't already backed by an Annotation or Target elsewhere in the document — a dangling id or path is simply dropped by the engine, not diagnosed, so double-check the ids you reference actually exist before publishing.
 
@@ -58,8 +89,9 @@ Written to `review.next.json` in the bundle directory, validated against [`schem
 - `{ type: 'hunk', path, hunkIndex }` — 0-based index into that file's hunks in `changes.diff`
 - `{ type: 'line', path, side: 'base'|'head', line, expectedText }` — `expectedText` must be copied **exactly** (including leading whitespace) from the patch line at that position, or the engine will flag it as a stale Diagnostic
 - `{ type: 'binary', path }`
+- `{ type: 'general' }` — the whole Comparison. An Annotation or a Comment may use it. Use it on an Annotation for a finding with no code line, for example a missing requirement. The UI shows it above the code. It counts as an open gap unless its verdict is `intended`. A later round does not carry a general Annotation forward. A general Comment is the Reviewer's. It is never stale. An open general change-request carries forward to the next round. Only the Reviewer resolves it.
 
-`evidence[].targetIds` and `verification[].targetIds` hold ids of other document entries (e.g. an annotation id) they relate to — they are not diff Targets and are not resolved against the patch.
+`evidence[].targetIds` and `verification[].targetIds` hold ids of other document entries (e.g. an annotation id) they relate to. Only a proof link (see "Proof links") makes the engine check an Evidence `targetIds` entry against the patch.
 
 `annotations[].relatedTargets` lets an Annotation point at a Target in a *different* file with a `reason` — for a claim that depends on something elsewhere in the diff (e.g. "this prop removal is safe because its only consumer was updated in the same commit, see f-user-menu.vue"). This is not call-graph inference: only record a relatedTarget for something you already read and can name a Target for, never a guessed dependency. Each relatedTarget's `target` is resolved against the patch exactly like a primary Target (same stale/unresolved Diagnostics apply), so `expectedText` on a `line`-type relatedTarget must still match exactly.
 
@@ -74,6 +106,18 @@ When a `binary` Target has real base and head revisions to compare (a `png`/`jpg
 3. Write one Evidence entry with `assetPath` set to the **head** image and `baseAssetPath` set to the **base** image, `targetIds` referencing the binary Target's file path. The engine only offers the reviewer side-by-side/swipe/onion-skin/changed-pixel comparison modes when both are present — a lone `assetPath` with no `baseAssetPath` renders as a single reference image with no comparison affordance.
 
 If either blob can't be retrieved (deleted file, inaccessible ref, non-image binary), don't fabricate a substitute — record a Verification `gap` instead, same as any other missing evidence.
+
+### Proof links
+
+A proof link shows that a change works. It is an Evidence item. It is not a new type.
+
+1. Write one Evidence item. Put the code Target and the image Target in `targetIds`.
+2. The code Target is an Annotation id or the path of a changed file. A hunk or line Annotation links the image to that hunk. A file path links it to the whole file.
+3. The image Target is the path of a changed image in the patch (the `binary` Target). Do not use an image that is not in the patch.
+4. Set `assetPath` to the head image, and `baseAssetPath` to the base image if you have one. The UI shows `description` as the caption.
+5. Write a link only for a clear match. For example, a changed snapshot whose test file is in the same MR. When you are not sure, write no link.
+
+A change with no proof link means "no proof found". A visible change with no proof stays a normal gap. The engine gives an `invalid-proof-link` Diagnostic when the image or the code Target does not exist, or when `assetPath` is missing.
 
 ### Pipeline Evidence
 
@@ -105,8 +149,17 @@ Read from the bundle directory and, if materializing a brand-new bundle, from th
 - `review.json` — the last published Review Document, if any (its `comparison` identity must match exactly)
 - `questions.jsonl` — open Comments needing your attention: `kind: 'question'` needs an Answer, `kind: 'change-request'` does not (see step 5)
 - `assets/` — evidence images already present
+- `live-head.json` — the live head you wrote on an earlier run, if any
 - Whatever's available externally: issue/MR description, discussion threads (fetch and read these before writing Evidence/Verification — see "Discussion Evidence" above), pipeline jobs and failures, base/head image blobs, runtime previews
 - The Comparison's own identity metadata (title, number, url, author, source/target branch, description) — set these on `comparison` whenever the source system exposes them (e.g. a GitLab/GitHub MR); the UI's metadata panel has nothing to show without them
+
+Check the live head of the MR each time you open or update a bundle. Write `live-head.json` in the bundle directory:
+
+```
+{ "head": "<newest commit sha of the MR>", "checkedAt": "<ISO date and time>" }
+```
+
+The Workspace compares `head` with `comparison.head`. When they differ, it shows "The MR has new commits since round N". The engine only reads this file. If you cannot fetch the live head, do not write the file. In the Intent and in the Review Brief, warn when the parent commits of the MR are stale. Do not make a group for them.
 
 If evidence is unavailable, record it as a Verification `gap`. Do not manufacture a substitute.
 
@@ -131,7 +184,7 @@ Prefer a small number of meaningful groups. A file may relate to several behavio
 
 ### 3. Create annotations
 
-Annotate decision-relevant Targets: intent boundaries, behavior changes, risk, removed safeguards, test evidence, pipeline causality, cross-file contracts. Avoid narrating obvious syntax — the diff already shows the code.
+Give every Annotation a `verdict`, and a `suggestion` when the verdict is `wrong` or `missing`. Use a general Target when the finding has no code line. Annotate decision-relevant Targets: intent boundaries, behavior changes, risk, removed safeguards, test evidence, pipeline causality, cross-file contracts. Avoid narrating obvious syntax — the diff already shows the code.
 
 For `kind: 'risk'` Annotations, the target repo's own documented standards (`CODING_STANDARDS.md`, `CONTRIBUTING.md`, etc.) always take priority — where one endorses something the smell baseline below would flag, don't flag it. Below that, use the baseline as a checklist for what's worth an Annotation at all; each hit is a labelled observation (`observed` Evidence, cited plainly — "possible Feature Envy"), never a verdict, never something that blocks the Verification/Answer steps.
 
@@ -150,11 +203,11 @@ For `kind: 'risk'` Annotations, the target repo's own documented standards (`COD
 
 Skip anything tooling (lint/typecheck) already enforces — an Annotation only earns its place per the Quality test below.
 
-**Complete when:** each important claim points to an exact Target and low-value commentary has been pruned.
+**Complete when:** each important claim points to an exact Target, every Annotation has a `verdict`, and low-value commentary has been pruned.
 
 ### 4. Attach evidence and verification
 
-For each Annotation or Behavioral Group that needs support, add Evidence with the correct `kind` and, if applicable, an `assetPath` under `assets/`. Add Verification items for anything the Reviewer should be able to check off, honestly scored.
+For each Annotation or Behavioral Group that needs support, add Evidence with the correct `kind` and, if applicable, an `assetPath` under `assets/`. Add a proof link where an image clearly shows a change works. Add Verification items for anything the Reviewer should be able to check off, honestly scored.
 
 **Complete when:** every risk-relevant claim has either Evidence or an explicit Verification gap.
 
@@ -176,6 +229,28 @@ Write the document to `review.next.json`, then run `review-workspace publish <bu
 - **Rejected** — the engine's blocking reason/message; fix and republish. Common causes: `comparison` mismatch, a Line Target's `expectedText` not matching the patch exactly, or an unsupported `schemaVersion`.
 
 **Complete when:** `publish` succeeds and running `review-workspace open <bundle>` shows the Diagnostics you expect (ideally none, for anything you were confident about).
+
+### Diagnostic codes
+
+`review-workspace open <bundle>` prints each Diagnostic as `<code>: <message>`. A Diagnostic never blocks the bundle. Fix each one you can.
+
+| Code | Meaning | Fix |
+|------|---------|-----|
+| `invalid-field` | A field does not match the schema. | Correct the field named in the message. |
+| `unresolved-target` | A file, hunk or binary Target is not in the patch. | Use a path and index that exist in `changes.diff`. |
+| `stale-line-target` | A line Target does not match the patch line. | Copy `expectedText` exactly from the patch. |
+| `missing-asset` | A file under `assets/` does not exist. | Save the image, or correct the path. |
+| `unsafe-asset-path` | An asset path leaves `assets/`. | Use a path inside `assets/`. |
+| `disallowed-asset-type` | An asset is not PNG, JPG, JPEG, GIF or WEBP. | Use an allowed image type. |
+| `asset-too-large` | An asset is over the size limit. | Use a smaller image. |
+| `image-without-comparison` | A changed image has a base but no base and head pair. It fires for a changed image that has a base. It does not fire for a new image, because a new image has no base. | Write one Evidence item with `assetPath` and `baseAssetPath`. |
+| `dangling-answer` | An Answer names a Question that does not exist. | Use an id from `questions.jsonl`. |
+| `unanchored-verification-gap` | A Verification `gap` has no concrete place. | Point `targetIds` at an Annotation, Evidence or file. |
+| `missing-verdict` | A note in a `schemaVersion` 2 document has no `verdict`. | Set `verdict` to one of the five values. |
+| `missing-suggestion` | A note with the verdict `wrong` or `missing` has no `suggestion`. | Write what to change. |
+| `invalid-proof-link` | A proof link names an image or code Target that does not exist, or has no `assetPath`. | Use a changed image path and an existing Annotation id or file path. Set `assetPath`. |
+
+Missing visual images use `missing-asset`, `unsafe-asset-path` and `disallowed-asset-type`.
 
 ## Quality test
 

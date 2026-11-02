@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { raiseQuestion, readQuestions, resolveComment } from '../questions/questions-log.ts'
 import { validateBundle } from './validate-bundle.ts'
 import { checkRound, mrKeyFor, nextRoundBundlePath, scaffoldNextRound } from './round.ts'
 
@@ -109,6 +110,37 @@ describe('scaffoldNextRound', () => {
     expect(document.comparison.base).toBe('aaa1111')
     expect(document.comparison.repository).toBe('example/widgets')
     expect(document.comparison.number).toBe(42)
+  })
+
+  describe('comment carry-forward', () => {
+    it('writes the open change-requests into the new bundle, keeping their ids', () => {
+      const open = raiseQuestion(workBundle, 'still open', { type: 'file', path: 'src/a.ts' }, 'change-request')
+      const done = raiseQuestion(workBundle, 'already done', undefined, 'change-request')
+      resolveComment(workBundle, done.id)
+
+      const result = scaffoldNextRound(workBundle, 'ccc3333', { patch: incrementalPatch })
+
+      const carried = readQuestions(result.bundlePath)
+      expect(carried.map((c) => c.id)).toEqual([open.id])
+      expect(carried[0]).toMatchObject({ body: 'still open', kind: 'change-request', status: 'open' })
+    })
+
+    it('does not carry questions', () => {
+      raiseQuestion(workBundle, 'a question')
+
+      const result = scaffoldNextRound(workBundle, 'ccc3333', { patch: incrementalPatch })
+
+      expect(existsSync(join(result.bundlePath, 'questions.jsonl'))).toBe(false)
+    })
+
+    it('leaves the previous bundle questions.jsonl untouched', () => {
+      raiseQuestion(workBundle, 'still open', undefined, 'change-request')
+      const before = readFileSync(join(workBundle, 'questions.jsonl'), 'utf-8')
+
+      scaffoldNextRound(workBundle, 'ccc3333', { patch: incrementalPatch })
+
+      expect(readFileSync(join(workBundle, 'questions.jsonl'), 'utf-8')).toBe(before)
+    })
   })
 
   it('produces a fully valid, independently-openable bundle', () => {

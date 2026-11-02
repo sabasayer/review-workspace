@@ -3,10 +3,10 @@ import { join, resolve } from 'node:path'
 import type { Annotation, BehavioralGroup, ReviewDocument, Target } from '../schema/types.ts'
 import { parsePatch } from '../patch/parse.ts'
 import type { ParsedPatch } from '../patch/types.ts'
-import { carryForwardComment, readQuestions } from '../questions/questions-log.ts'
+import { carryForwardComment, isOpenChangeRequest, readQuestions } from '../questions/questions-log.ts'
 import type { Comment } from '../questions/types.ts'
 import type { Chain } from './round.ts'
-import { evaluateResolution, type Resolution } from './resolution.ts'
+import { evaluateResolution, isCodeComment, type Resolution } from './resolution.ts'
 import { incrementalTouchedPaths } from './incremental-patch.ts'
 
 /**
@@ -60,7 +60,7 @@ function readReviewDocument(bundlePath: string, caches: Caches): ReviewDocument 
 }
 
 function openChangeRequests(bundlePath: string): Comment[] {
-  return readQuestions(bundlePath).filter((c) => c.kind === 'change-request' && c.status === 'open' && !c.resolved)
+  return readQuestions(bundlePath).filter(isOpenChangeRequest)
 }
 
 /**
@@ -115,6 +115,7 @@ export function computeCarriedResolutions(bundlePath: string, caches: Caches = c
       const currentPatch = readPatch(bundlePath, caches)
       return readQuestions(bundlePath)
         .filter((c) => carriedIds.has(c.id))
+        .filter(isCodeComment)
         .map((comment) => ({ comment, resolution: evaluateResolution(comment, previousPatch, currentPatch) }))
     },
   )
@@ -168,6 +169,8 @@ export function listComments(bundlePath: string, caches: Caches = createCaches()
 
 function targetKey(target: Target): string {
   switch (target.type) {
+    case 'general':
+      return 'general'
     case 'file':
       return `file:${target.path}`
     case 'binary':
@@ -213,7 +216,9 @@ export function collectCarriedReviewContent(
       const ownGroupIds = new Set((ownDocument.behavioralGroups ?? []).map((g) => g.id))
 
       return {
-        annotations: previousAll.annotations.filter((a) => !touchedPaths.has(a.target.path) && !ownTargetKeys.has(targetKey(a.target))),
+        annotations: previousAll.annotations.filter(
+          (a) => a.target.type !== 'general' && !touchedPaths.has(a.target.path) && !ownTargetKeys.has(targetKey(a.target)),
+        ),
         behavioralGroups: previousAll.behavioralGroups.filter(
           (g) => !ownGroupIds.has(g.id) && !(g.targets ?? []).some((t) => touchedPaths.has(t.path)),
         ),

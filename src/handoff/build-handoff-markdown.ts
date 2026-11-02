@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { isOpenChangeRequest } from '../questions/questions-log.ts'
 import type { Comment } from '../questions/types.ts'
 import type { Annotation, Comparison, Target } from '../schema/types.ts'
 
@@ -10,14 +11,18 @@ export interface HandoffMarkdownInput {
   annotations: Annotation[]
 }
 
-const GENERAL_GROUP = '(general — no Target)'
+const NO_TARGET_GROUP = '(general — no Target)'
+const GENERAL_TARGET_GROUP = 'General'
 
-function targetPath(target: Target): string {
-  return target.path
+function groupKey(target: Target | undefined): string {
+  if (!target) return NO_TARGET_GROUP
+  return target.type === 'general' ? GENERAL_TARGET_GROUP : target.path
 }
 
 function targetKey(target: Target): string {
   switch (target.type) {
+    case 'general':
+      return 'general'
     case 'file':
       return `file:${target.path}`
     case 'binary':
@@ -40,6 +45,8 @@ function targetsEqual(a: Target, b: Target): boolean {
 
 function describeTarget(target: Target): string {
   switch (target.type) {
+    case 'general':
+      return 'General'
     case 'file':
       return `File: ${target.path}`
     case 'hunk':
@@ -52,13 +59,13 @@ function describeTarget(target: Target): string {
 }
 
 function openChangeRequests(comments: Comment[]): Comment[] {
-  return comments.filter((c) => c.kind === 'change-request' && c.status === 'open' && !c.resolved)
+  return comments.filter(isOpenChangeRequest)
 }
 
 function groupByFile(comments: Comment[]): Map<string, Comment[]> {
   const byFile = new Map<string, Comment[]>()
   for (const comment of comments) {
-    const key = comment.target ? targetPath(comment.target) : GENERAL_GROUP
+    const key = groupKey(comment.target)
     const group = byFile.get(key) ?? []
     group.push(comment)
     byFile.set(key, group)
@@ -66,11 +73,14 @@ function groupByFile(comments: Comment[]): Map<string, Comment[]> {
   return byFile
 }
 
+function groupRank(key: string): number {
+  if (key === NO_TARGET_GROUP) return 2
+  return key === GENERAL_TARGET_GROUP ? 1 : 0
+}
+
 function orderedFileKeys(byFile: Map<string, Comment[]>): string[] {
   return [...byFile.keys()].sort((a, b) => {
-    if (a === GENERAL_GROUP) return 1
-    if (b === GENERAL_GROUP) return -1
-    return a.localeCompare(b)
+    return groupRank(a) - groupRank(b) || a.localeCompare(b)
   })
 }
 
@@ -118,7 +128,7 @@ export function buildHandoffMarkdown(input: HandoffMarkdownInput): string {
       lines.push(comment.body)
       lines.push('')
 
-      const relatedAnnotations = comment.target
+      const relatedAnnotations = comment.target && comment.target.type !== 'general'
         ? input.annotations.filter((a) => targetsEqual(a.target, comment.target!))
         : []
       for (const annotation of relatedAnnotations) {

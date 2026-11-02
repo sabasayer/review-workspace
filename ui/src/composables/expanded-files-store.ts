@@ -9,3 +9,7 @@ export function isFileCollapsed(path: string, defaultCollapsed: boolean): boolea
 export function toggleFile(path: string, currentlyCollapsed: boolean): void {
   overrides.set(path, !currentlyCollapsed)
 }
+
+export function expandFile(path: string): void {
+  overrides.set(path, false)
+}

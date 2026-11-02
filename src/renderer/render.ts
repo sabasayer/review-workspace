@@ -1,16 +1,21 @@
 import { resolve } from 'node:path'
-import type { Annotation, Evidence, ReviewDocument, Target, VerificationItem } from '../schema/types.ts'
+import type { Annotation, CodeTarget, Evidence, ReviewDocument, VerificationItem } from '../schema/types.ts'
 import type { ParsedPatch, PatchFile } from '../patch/types.ts'
 import type { Diagnostic } from '../bundle/diagnostics.ts'
+import { findProofLinks, type ProofLink } from '../bundle/proof-links.ts'
 import { collectCarriedReviewContent, createCaches, readChain } from '../bundle/carry-forward.ts'
 import { ALLOWED_ASSET_EXTENSIONS } from '../security/asset-path.ts'
+import { countOpenGaps } from './open-gaps.ts'
 import type {
   RenderedAnnotation,
+  RenderedCodeAnnotation,
+  RenderedGeneralAnnotation,
   RenderedFile,
   RenderedGroup,
   RenderedImageEvidence,
   RenderedLine,
   RenderedPipelineEvidence,
+  RenderedProof,
   RenderedSummary,
   SideBySideRow,
   ViewModel,
@@ -58,7 +63,7 @@ export function toSideBySideRows(lines: RenderedLine[]): SideBySideRow[] {
 
 const OVERFLOW_THRESHOLD = 120
 
-function targetPath(target: Target): string {
+function targetPath(target: CodeTarget): string {
   return target.path
 }
 
@@ -106,16 +111,45 @@ function toRenderedAnnotation(
   return { ...annotation, evidence, verification }
 }
 
+function toRenderedProofs(links: ProofLink[], evidenceById: Map<string, Evidence>): RenderedProof[] {
+  return links.flatMap((link) => {
+    const evidence = evidenceById.get(link.evidenceId)
+    if (!evidence?.assetPath) return []
+    return [
+      {
+        evidenceId: evidence.id,
+        caption: evidence.description,
+        imagePath: link.imagePath,
+        assetPath: evidence.assetPath,
+        ...(evidence.baseAssetPath ? { baseAssetPath: evidence.baseAssetPath } : {}),
+      },
+    ]
+  })
+}
+
+function isCodeAnnotation(annotation: RenderedAnnotation): annotation is RenderedCodeAnnotation {
+  return annotation.target.type !== 'general'
+}
+
+function isGeneralAnnotation(annotation: RenderedAnnotation): annotation is RenderedGeneralAnnotation {
+  return annotation.target.type === 'general'
+}
+
 function renderFile(
   patchFile: PatchFile,
   document: ReviewDocument,
   fileDiagnostics: Diagnostic[],
   evidenceById: Map<string, Evidence>,
   verificationByTargetId: Map<string, VerificationItem[]>,
+  proofLinks: ProofLink[],
 ): RenderedFile {
   const fileAnnotations = (document.annotations ?? [])
-    .filter((a) => targetPath(a.target) === patchFile.path)
+    .filter((a) => a.target.type !== 'general' && targetPath(a.target) === patchFile.path)
     .map((a) => toRenderedAnnotation(a, evidenceById, verificationByTargetId))
+    .filter(isCodeAnnotation)
+
+  const codeProofLinks = proofLinks.filter((l) => l.code.path === patchFile.path)
+  const proofEvidenceIds = new Set(proofLinks.map((l) => l.evidenceId))
 
   const hunks = patchFile.hunks.map((hunk, hunkIndex) => ({
     oldStart: hunk.oldStart,
@@ -143,6 +177,10 @@ function renderFile(
         diagnostics: lineDiagnostics,
       }
     }),
+    proofs: toRenderedProofs(
+      codeProofLinks.filter((l) => l.code.hunkIndex === hunkIndex),
+      evidenceById,
+    ),
   }))
 
   const attachedLineDiagnosticKeys = new Set(hunks.flatMap((h) => h.lines.flatMap((l) => l.diagnostics)))
@@ -150,6 +188,7 @@ function renderFile(
 
   const imageEvidence: RenderedImageEvidence[] = (document.evidence ?? [])
     .filter((e) => e.assetPath && ALLOWED_ASSET_EXTENSIONS.some((ext) => e.assetPath!.toLowerCase().endsWith(ext)))
+    .filter((e) => patchFile.binary || !proofEvidenceIds.has(e.id))
     .filter((e) => (e.targetIds ?? []).includes(patchFile.path) || fileAnnotations.some((a) => (e.targetIds ?? []).includes(a.id)))
     .map((e) => ({
       id: e.id,
@@ -191,6 +230,13 @@ function renderFile(
     annotations: fileAnnotations,
     imageEvidence,
     pipelineEvidence,
+    proofs: toRenderedProofs(
+      codeProofLinks.filter((l) => l.code.hunkIndex === undefined),
+      evidenceById,
+    ),
+    proofFor: proofLinks
+      .filter((l) => l.imagePath === patchFile.path)
+      .map((l) => ({ evidenceId: l.evidenceId, ...l.code })),
     verification: fileVerification,
     diagnostics: fileLevelDiagnostics,
   }
@@ -262,11 +308,17 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
   const evidenceById = new Map((effectiveDocument.evidence ?? []).map((e) => [e.id, e]))
   const verificationByTargetId = buildVerificationByTargetId(effectiveDocument.verification ?? [])
 
+  const proofLinks = findProofLinks(effectiveDocument, patch).links
   const patchFileByPath = new Map(patch.files.map((f) => [f.path, f]))
   const files: RenderedFile[] = orderedPaths
     .map((path) => patchFileByPath.get(path))
     .filter((f): f is PatchFile => f !== undefined)
-    .map((f) => renderFile(f, effectiveDocument, diagnosticsByPath.get(f.path) ?? [], evidenceById, verificationByTargetId))
+    .map((f) => renderFile(f, effectiveDocument, diagnosticsByPath.get(f.path) ?? [], evidenceById, verificationByTargetId, proofLinks))
+
+  const generalAnnotations = (effectiveDocument.annotations ?? [])
+    .filter((a) => a.target.type === 'general')
+    .map((a) => toRenderedAnnotation(a, evidenceById, verificationByTargetId))
+    .filter(isGeneralAnnotation)
 
   const attachedPaths = new Set(patch.files.map((f) => f.path))
   const bundleLevelDiagnostics = diagnostics.filter((d) => {
@@ -282,6 +334,9 @@ export function render(document: ReviewDocument, patch: ParsedPatch, diagnostics
     diagnostics: bundleLevelDiagnostics,
     generatorPrompt: buildGeneratorPrompt(bundlePath),
     answers: document.answers ?? [],
+    intent: document.intent,
+    generalAnnotations,
+    openGaps: countOpenGaps(files, generalAnnotations),
     summary: renderSummary(effectiveDocument, attachedPaths, evidenceById, verificationByTargetId),
   }
 }
@@ -300,7 +355,8 @@ function renderSummary(
     highlightAnnotations: (document.summary.highlightAnnotationIds ?? [])
       .map((id) => annotationsById.get(id))
       .filter((a): a is NonNullable<typeof a> => a !== undefined)
-      .map((a) => toRenderedAnnotation(a, evidenceById, verificationByTargetId)),
+      .map((a) => toRenderedAnnotation(a, evidenceById, verificationByTargetId))
+      .filter(isCodeAnnotation),
     highlightPaths: (document.summary.highlightPaths ?? []).filter((path) => attachedPaths.has(path)),
   }
 }

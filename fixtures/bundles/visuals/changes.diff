@@ -1,0 +1,20 @@
+diff --git a/src/auth/login.ts b/src/auth/login.ts
+index 1111111..2222222 100644
+--- a/src/auth/login.ts
++++ b/src/auth/login.ts
+@@ -40,4 +40,8 @@ export function login(username: string, password: string) {
+   const attempts = getAttempts(username)
+
++  if (attempts > MAX_ATTEMPTS) {
++    throw new RateLimitError(username)
++  }
++
+   return authenticate(username, password)
+ }
+diff --git a/src/config/rate-limit.ts b/src/config/rate-limit.ts
+index 0000000..3333333
+--- /dev/null
++++ b/src/config/rate-limit.ts
+@@ -0,0 +1,2 @@
++export const MAX_ATTEMPTS = 5
++export const RATE_LIMIT_WINDOW_MS = 60_000

@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { carryForwardComment, raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion } from './questions-log.ts'
+import { carryForwardComment, isOpenChangeRequest, raiseQuestion, readQuestions, resolveComment, withdrawAndReplaceQuestion, withdrawQuestion } from './questions-log.ts'
 
 let dir: string
 
@@ -129,6 +129,42 @@ describe('questions log', () => {
     resolveComment(dir, c.id)
     const after = readFileSync(join(dir, 'questions.jsonl'), 'utf-8')
     expect(after.startsWith(before)).toBe(true)
+  })
+
+  describe('status derivation', () => {
+    it('reads a resolved change-request as status resolved', () => {
+      const c = raiseQuestion(dir, 'Please fix', undefined, 'change-request')
+      resolveComment(dir, c.id)
+      const [reread] = readQuestions(dir)
+      expect(reread.status).toBe('resolved')
+      expect(reread.resolved).toBe(true)
+    })
+
+    it('keeps a change-request without a resolved record open', () => {
+      raiseQuestion(dir, 'Please fix', undefined, 'change-request')
+      expect(readQuestions(dir)[0].status).toBe('open')
+    })
+
+    it('ignores a resolved record that points at a question', () => {
+      const q = raiseQuestion(dir, 'Why 5?')
+      appendFileSync(join(dir, 'questions.jsonl'), JSON.stringify({ type: 'resolved', id: 'r', createdAt: '2026-01-01T00:00:00.000Z', commentId: q.id }) + '\n')
+      expect(readQuestions(dir)[0]).toMatchObject({ status: 'open', resolved: false })
+    })
+
+    it('keeps a withdrawn comment withdrawn even if a resolved record follows', () => {
+      const c = raiseQuestion(dir, 'Please fix', undefined, 'change-request')
+      withdrawQuestion(dir, c.id)
+      appendFileSync(join(dir, 'questions.jsonl'), JSON.stringify({ type: 'resolved', id: 'r', createdAt: '2026-01-01T00:00:00.000Z', commentId: c.id }) + '\n')
+      expect(readQuestions(dir)[0].status).toBe('withdrawn')
+    })
+
+    it('answers isOpenChangeRequest from the derived status only', () => {
+      const open = raiseQuestion(dir, 'a', undefined, 'change-request')
+      const done = raiseQuestion(dir, 'b', undefined, 'change-request')
+      raiseQuestion(dir, 'c')
+      resolveComment(dir, done.id)
+      expect(readQuestions(dir).filter(isOpenChangeRequest).map((c) => c.id)).toEqual([open.id])
+    })
   })
 
   describe('carryForwardComment', () => {

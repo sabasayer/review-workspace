@@ -65,13 +65,14 @@ test.describe('without a write token', () => {
   })
 
   test('asking a question from a note popover is blocked until a write token is set', async ({ page }) => {
-    await page.getByRole('button', { name: /^Note 1\b/ }).click()
-    const popover = page.locator('div.w-80').filter({ hasText: 'Rejects further attempts' })
+    await page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' }).getByRole('button').first().click()
+    const popover = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
     await popover.getByRole('button', { name: 'Ask a question' }).click()
-    await popover.getByPlaceholder("What's the reasoning here?").fill('Why 5 attempts specifically?')
+    const composer = page.getByTestId('question-composer')
+    await composer.getByPlaceholder("What's the reasoning here?").fill('Why 5 attempts specifically?')
 
-    const askButton = popover.getByRole('button', { name: 'Ask', exact: true })
-    await expect(popover.getByText('Set your write token first (top right).')).toBeVisible()
+    const askButton = composer.getByRole('button', { name: 'Ask', exact: true })
+    await expect(composer.getByText('Set your write token first (top right).')).toBeVisible()
     await expect(askButton).toBeDisabled()
   })
 })
@@ -85,7 +86,7 @@ test.describe('reviewer progress checkboxes and note actions', () => {
   })
 
   test('file headers stick to the top of the scroll container', async ({ page }) => {
-    const header = page.locator('article', { hasText: 'src/auth/login.ts' }).first().locator('header')
+    const header = page.locator('article[id]', { hasText: 'src/auth/login.ts' }).first().locator('header')
     await expect(header).toHaveCSS('position', 'sticky')
     await expect(header).toHaveCSS('top', '0px')
   })
@@ -122,11 +123,11 @@ test.describe('reviewer progress checkboxes and note actions', () => {
   })
 
   test('marking a note resolved changes its styling and persists', async ({ page }) => {
-    const trigger = page.getByRole('button', { name: /^Note 1\b/ })
-    await expect(trigger).toHaveClass(/text-warning/)
+    const trigger = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
+    await expect(trigger).toHaveClass(/border-warning/)
 
-    await trigger.click()
-    const popover = page.locator('div.w-80').filter({ hasText: 'Rejects further attempts' })
+    await trigger.getByRole('button').first().click()
+    const popover = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
     const checkbox = popover.getByRole('checkbox', { name: 'Resolved' })
 
     // Negative: not resolved by default.
@@ -134,44 +135,44 @@ test.describe('reviewer progress checkboxes and note actions', () => {
 
     // Positive: resolving flips the badge from warning to success.
     await checkbox.check()
-    await expect(trigger).toHaveClass(/text-success/)
-    await expect(trigger).not.toHaveClass(/text-warning/)
+    await expect(trigger).toHaveClass(/border-success/)
+    await expect(trigger).not.toHaveClass(/border-warning/)
 
     await page.reload()
     await waitForReviewLoaded(page)
-    const reloadedTrigger = page.getByRole('button', { name: /^Note 1\b/ })
-    await expect(reloadedTrigger).toHaveClass(/text-success/)
+    const reloadedTrigger = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
+    await expect(reloadedTrigger).toHaveClass(/border-success/)
 
     // Leave the note unresolved again so later tests in this file see the default state.
-    await reloadedTrigger.click()
-    await page.locator('div.w-80').filter({ hasText: 'Rejects further attempts' }).getByRole('checkbox', { name: 'Resolved' }).uncheck()
+    await reloadedTrigger.getByRole('button').first().click()
+    await page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' }).getByRole('checkbox', { name: 'Resolved' }).uncheck()
   })
 
   test('asking a question from a note popover with a token raises it', async ({ page }) => {
-    await page.getByRole('button', { name: /^Note 1\b/ }).click()
-    const popover = page.locator('div.w-80').filter({ hasText: 'Rejects further attempts' })
+    await page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' }).getByRole('button').first().click()
+    const popover = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
     await popover.getByRole('button', { name: 'Ask a question' }).click()
-    await popover.getByPlaceholder("What's the reasoning here?").fill('Why 5 attempts specifically?')
-    await popover.getByRole('button', { name: 'Ask', exact: true }).click()
+    const panel = page.getByTestId('question-panel')
+    await expect(panel.getByTestId('composer-target')).toHaveValue('line:src/auth/login.ts:head:42')
+    await panel.getByPlaceholder("What's the reasoning here?").fill('Why 5 attempts specifically?')
+    await panel.getByRole('button', { name: 'Ask', exact: true }).click()
 
-    await bannerButtons(page).nth(2).click()
-    const dialog = page.getByRole('dialog', { name: 'Questions' })
-    await expect(dialog.getByText('Why 5 attempts specifically?')).toBeVisible()
+    await expect(panel.getByTestId('question-thread').filter({ hasText: 'Why 5 attempts specifically?' })).toBeVisible()
   })
 
-  test('flagging a note as a change request pre-fills the summary and raises it; canceling raises nothing', async ({ page }) => {
-    await page.getByRole('button', { name: /^Note 1\b/ }).click()
-    const popover = page.locator('div.w-80').filter({ hasText: 'Rejects further attempts' })
+  test('flagging a note as a change request pre-fills the suggestion and raises it; canceling raises nothing', async ({ page }) => {
+    await page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' }).getByRole('button').first().click()
+    const popover = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
 
     // Negative: canceling after flagging leaves no change-request behind.
-    await popover.getByRole('button', { name: 'Flag as change-request' }).click()
+    await popover.getByRole('button', { name: 'Raise as change-request' }).click()
     const textarea = popover.getByRole('textbox')
-    await expect(textarea).toHaveValue(/Rejects further attempts/)
+    await expect(textarea).toHaveValue('Count only failed attempts, not every login.')
     await popover.getByRole('button', { name: 'Cancel' }).click()
     await expect(popover.getByRole('button', { name: 'Ask a question' })).toBeVisible()
 
     // Positive: submitting raises a change-request targeting the same line.
-    await popover.getByRole('button', { name: 'Flag as change-request' }).click()
+    await popover.getByRole('button', { name: 'Raise as change-request' }).click()
     await popover.getByRole('button', { name: 'Raise change request' }).click()
     await page.reload()
     await waitForReviewLoaded(page)
@@ -179,18 +180,13 @@ test.describe('reviewer progress checkboxes and note actions', () => {
     await expect(lineTarget.getByRole('button', { name: /^Change request/ })).toBeVisible()
   })
 
-  test('focus mode shows the note inline, previews its diff without leaving, and lets you resolve/ask', async ({ page }) => {
+  test('focus mode shows the note inline, shows its target code without leaving, and lets you resolve/ask', async ({ page }) => {
     await page.getByRole('button', { name: 'Focus' }).click()
     await expect(page.getByText(/^\d+ \/ \d+ — ordered by risk$/)).toBeVisible()
     await expect(page.getByText('Rejects further attempts')).toBeVisible()
 
-    // Positive: the diff preview toggle shows the actual target line inline.
-    const showDiff = page.getByRole('button', { name: '▸ preview diff' })
-    await expect(showDiff).toBeVisible()
-    await showDiff.click()
+    // Positive: the target code shows inline at the top of the note, no toggle needed.
     await expect(page.getByText('if (attempts > MAX_ATTEMPTS)')).toBeVisible()
-    await page.getByRole('button', { name: '▾ close diff preview' }).click()
-    await expect(page.getByText('if (attempts > MAX_ATTEMPTS)')).toHaveCount(0)
 
     // Resolve the note and ask a question, both without leaving focus mode.
     await page.getByRole('checkbox', { name: 'Resolved' }).check()

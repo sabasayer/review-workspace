@@ -24,4 +24,24 @@ describe('formatDiagnosticLabel', () => {
       'Verification gap vi-1 has no concrete anchor: targetIds is empty',
     )
   })
+
+  it('formats a changed image without a pair', () => {
+    expect(formatDiagnosticLabel({ kind: 'image-without-comparison', path: 'a/b.png' })).toBe('Changed image has no base and head asset: a/b.png')
+  })
+
+  it('formats a note with no verdict', () => {
+    expect(formatDiagnosticLabel({ kind: 'missing-verdict', annotationId: 'an-1' })).toBe(
+      'Note an-1 has no verdict. Set it to intended, missing, wrong, extra or unclear.',
+    )
+  })
+
+  it('formats a note with no suggestion', () => {
+    expect(formatDiagnosticLabel({ kind: 'missing-suggestion', annotationId: 'an-2', verdict: 'missing' })).toBe(
+      'Note an-2 has the verdict missing but no suggestion. Say what to change.',
+    )
+  })
+
+  it('formats a broken proof link', () => {
+    expect(formatDiagnosticLabel({ kind: 'invalid-proof-link', evidenceId: 'ev-1', detail: 'x' })).toBe('Proof link in evidence ev-1 is broken: x')
+  })
 })

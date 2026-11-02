@@ -3,9 +3,11 @@ import { validateReviewDocumentSchema } from '../schema/validate.ts'
 import type { Evidence, ReviewDocument, Target } from '../schema/types.ts'
 import type { ParsedPatch, PatchFile } from '../patch/types.ts'
 import type { Diagnostic } from './diagnostics.ts'
-import { resolveAssetPath } from '../security/asset-path.ts'
+import { ALLOWED_ASSET_EXTENSIONS, resolveAssetPath } from '../security/asset-path.ts'
 import { DEFAULT_LIMITS, type BundleLimits } from '../security/limits.ts'
 import { readQuestions } from '../questions/questions-log.ts'
+import { checkAnnotationFields } from './annotation-fields.ts'
+import { findProofLinks } from './proof-links.ts'
 
 function findFile(patch: ParsedPatch, path: string): PatchFile | undefined {
   return patch.files.find((f) => f.path === path)
@@ -30,6 +32,8 @@ function checkAssetPath(bundlePath: string, assetPath: string, limits: BundleLim
 
 /** Resolves a Target against a patch, returning the Diagnostic that explains why it's unresolved/stale, or undefined when it resolves cleanly. */
 export function resolveTarget(target: Target, patch: ParsedPatch): Diagnostic | undefined {
+  if (target.type === 'general') return undefined
+
   const file = findFile(patch, target.path)
 
   if (target.type === 'file') {
@@ -91,6 +95,38 @@ function isConcreteAnchor(id: string, annotationIds: Set<string>, evidenceById: 
   return (evidence.targetIds ?? []).some((innerId) => annotationIds.has(innerId) || filePaths.has(innerId))
 }
 
+function intentVisualAssetPaths(document: ReviewDocument): string[] {
+  return (document.intent?.visuals ?? []).flatMap((v) => (v.baseAssetPath ? [v.assetPath, v.baseAssetPath] : [v.assetPath]))
+}
+
+function isImagePath(path: string): boolean {
+  const lowerPath = path.toLowerCase()
+  return ALLOWED_ASSET_EXTENSIONS.some((ext) => lowerPath.endsWith(ext))
+}
+
+function changedImagePaths(document: ReviewDocument, patch: ParsedPatch): string[] {
+  const targets = [
+    ...(document.behavioralGroups ?? []).flatMap((g) => g.targets ?? []),
+    ...(document.annotations ?? []).map((a) => a.target),
+  ]
+  const paths = [
+    ...patch.files.filter((f) => f.binary).map((f) => f.path),
+    ...targets.flatMap((t) => (t.type === 'binary' ? [t.path] : [])),
+  ]
+  const addedPaths = new Set(patch.files.filter((f) => f.added).map((f) => f.path))
+  return [...new Set(paths.filter(isImagePath))].filter((path) => !addedPaths.has(path))
+}
+
+function findImagesWithoutComparison(document: ReviewDocument, patch: ParsedPatch): Diagnostic[] {
+  const pairedEvidence = (document.evidence ?? []).filter((e) => e.assetPath && e.baseAssetPath)
+  return changedImagePaths(document, patch)
+    .filter((path) => {
+      const annotationIds = (document.annotations ?? []).filter((a) => a.target.type !== 'general' && a.target.path === path).map((a) => a.id)
+      return !pairedEvidence.some((e) => (e.targetIds ?? []).some((id) => id === path || annotationIds.includes(id)))
+    })
+    .map((path) => ({ kind: 'image-without-comparison', path }))
+}
+
 export function collectDiagnostics(
   document: ReviewDocument,
   patch: ParsedPatch,
@@ -129,6 +165,16 @@ export function collectDiagnostics(
       if (diagnostic) diagnostics.push(diagnostic)
     }
   }
+
+  for (const assetPath of intentVisualAssetPaths(document)) {
+    const diagnostic = checkAssetPath(bundlePath, assetPath, limits)
+    if (diagnostic) diagnostics.push(diagnostic)
+  }
+
+  diagnostics.push(...checkAnnotationFields(document))
+  diagnostics.push(...findProofLinks(document, patch).diagnostics)
+
+  diagnostics.push(...findImagesWithoutComparison(document, patch))
 
   if (document.answers?.length) {
     const questionIds = new Set(readQuestions(bundlePath).map((q) => q.id))

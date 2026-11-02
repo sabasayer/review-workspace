@@ -10,17 +10,27 @@ export type Diagnostic =
   | { kind: 'unsafe-asset-path'; assetPath: string }
   | { kind: 'disallowed-asset-type'; assetPath: string }
   | { kind: 'asset-too-large'; assetPath: string; bytes: number }
+  | { kind: 'image-without-comparison'; path: string }
   | { kind: 'dangling-answer'; answerId: string; questionId: string }
   | { kind: 'unanchored-verification-gap'; verificationId: string; detail: string }
+  | { kind: 'missing-verdict'; annotationId: string }
+  | { kind: 'missing-suggestion'; annotationId: string; verdict: 'wrong' | 'missing' }
+  | { kind: 'invalid-proof-link'; evidenceId: string; detail: string }
 
-export type Target =
+export type CodeTarget =
   | { type: 'file'; path: string }
   | { type: 'hunk'; path: string; hunkIndex: number }
   | { type: 'line'; path: string; side: 'base' | 'head'; line: number; expectedText: string }
   | { type: 'binary'; path: string }
 
+export interface GeneralTarget {
+  type: 'general'
+}
+
+export type Target = CodeTarget | GeneralTarget
+
 export interface RelatedTarget {
-  target: Target
+  target: CodeTarget
   reason: string
 }
 
@@ -39,13 +49,21 @@ export interface RenderedAnnotationVerification {
 
 export interface Annotation {
   id: string
-  target: Target
+  target: CodeTarget
   summary: string
   kind?: 'intent' | 'behavior' | 'risk'
+  verdict?: 'intended' | 'missing' | 'wrong' | 'extra' | 'unclear'
+  severity?: 'low' | 'medium' | 'high'
+  source?: 'issue' | 'mr-text' | 'repo-rule' | 'nobody'
+  suggestion?: string
   evidenceIds?: string[]
   relatedTargets?: RelatedTarget[]
   evidence: RenderedAnnotationEvidence[]
   verification: RenderedAnnotationVerification[]
+}
+
+export interface GeneralAnnotation extends Omit<Annotation, 'target'> {
+  target: GeneralTarget
 }
 
 export interface RenderedLine {
@@ -59,12 +77,28 @@ export interface RenderedLine {
   diagnostics: Diagnostic[]
 }
 
+export interface RenderedProof {
+  evidenceId: string
+  caption: string
+  imagePath: string
+  assetPath: string
+  baseAssetPath?: string
+}
+
+export interface RenderedProofBackLink {
+  evidenceId: string
+  path: string
+  hunkIndex?: number
+  annotationId?: string
+}
+
 export interface RenderedHunk {
   oldStart: number
   oldLines: number
   newStart: number
   newLines: number
   lines: RenderedLine[]
+  proofs: RenderedProof[]
 }
 
 export interface RenderedImageEvidence {
@@ -92,6 +126,8 @@ export interface RenderedFile {
   annotations: Annotation[]
   imageEvidence: RenderedImageEvidence[]
   pipelineEvidence: RenderedPipelineEvidence[]
+  proofs: RenderedProof[]
+  proofFor: RenderedProofBackLink[]
   /** Every Verification item targeting this file, directly or via one of its Annotations — a superset of any single Annotation's own `.verification`. */
   verification: RenderedAnnotationVerification[]
   diagnostics: Diagnostic[]
@@ -132,6 +168,22 @@ export interface RenderedSummary {
   highlightPaths: string[]
 }
 
+export interface IntentVisual {
+  assetPath: string
+  baseAssetPath?: string
+  caption: string
+  source: 'mr-text' | 'snapshot'
+}
+
+export interface Intent {
+  does: string
+  why: string
+  doesNot?: string[]
+  sources: string[]
+  weakDescription?: string
+  visuals?: IntentVisual[]
+}
+
 export interface ViewModel {
   comparison: Comparison
   /** This bundle's own round number in its chain — 1 for a bundle with no `chain.json`. */
@@ -142,6 +194,18 @@ export interface ViewModel {
   generatorPrompt: string
   answers: Answer[]
   summary?: RenderedSummary
+  intent?: Intent
+  generalAnnotations: GeneralAnnotation[]
+  openGaps: number
+}
+
+export interface LiveHeadStatus {
+  status: 'absent' | 'invalid' | 'ok'
+  message?: string
+  liveHead?: { head: string; checkedAt: string }
+  recordedHead: string
+  stale: boolean
+  round: number
 }
 
 export type CommentKind = 'question' | 'change-request'
@@ -160,7 +224,7 @@ export interface Question {
   body: string
   target?: Target
   kind: CommentKind
-  status: 'open' | 'withdrawn'
+  status: 'open' | 'withdrawn' | 'resolved'
   supersededBy?: string
   resolved: boolean
   resolvedAt?: string
@@ -169,3 +233,8 @@ export interface Question {
   /** Present only for a comment carried forward from the previous round and still open. */
   resolution?: Resolution
 }
+
+export type WatcherRead =
+  | { status: 'absent' }
+  | { status: 'invalid'; message: string }
+  | { status: 'ok'; watcher: { enabled: boolean; cap: number; used: number; current: string | null } }

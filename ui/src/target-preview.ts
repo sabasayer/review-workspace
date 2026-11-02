@@ -1,4 +1,4 @@
-import type { RenderedFile, RenderedLine, Target } from './types.ts'
+import type { CodeTarget, RenderedFile, RenderedLine } from './types.ts'
 
 export interface TargetPreview {
   path: string
@@ -8,7 +8,7 @@ export interface TargetPreview {
 const CONTEXT_LINES = 3
 
 // A `file`/`binary` Target has no single spot to preview — only `hunk`/`line` resolve.
-export function resolveTargetPreview(files: RenderedFile[], target: Target): TargetPreview | null {
+export function resolveTargetPreview(files: RenderedFile[], target: CodeTarget): TargetPreview | null {
   const file = files.find((f) => f.path === target.path)
   if (!file) return null
 

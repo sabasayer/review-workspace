@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { parsePatch } from '../patch/parse.ts'
 import { readQuestions } from '../questions/questions-log.ts'
-import { evaluateResolution } from './resolution.ts'
+import { evaluateResolution, isCodeComment, type CodeComment } from './resolution.ts'
 
 function bundlePath(name: string) {
   return fileURLToPath(new URL(`../../fixtures/bundles/${name}/`, import.meta.url))
@@ -15,7 +15,7 @@ const currentPatch = parsePatch(readFileSync(join(bundlePath('chained-mr-100-r2'
 const comments = readQuestions(bundlePath('chained-mr-100'))
 
 function comment(id: string) {
-  return comments.find((c) => c.id === id)!
+  return comments.find((c) => c.id === id)! as CodeComment
 }
 
 describe('evaluateResolution', () => {
@@ -83,5 +83,16 @@ describe('evaluateResolution', () => {
       resolved: false,
     }
     expect(evaluateResolution(untargeted, previousPatch, previousPatch).status).toBe('target-untouched')
+  })
+})
+
+describe('isCodeComment', () => {
+  it('is false for a general Comment: it is never stale and never touched by the diff', () => {
+    expect(isCodeComment({ ...comment('cr-retry'), target: { type: 'general' } })).toBe(false)
+  })
+
+  it('is true for a Comment with a code Target or none', () => {
+    expect(isCodeComment(comment('cr-retry'))).toBe(true)
+    expect(isCodeComment({ ...comment('cr-retry'), target: undefined })).toBe(true)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isFileCollapsed, toggleFile } from './expanded-files-store.ts'
+import { expandFile, isFileCollapsed, toggleFile } from './expanded-files-store.ts'
 
 describe('expanded-files-store', () => {
   it('uses the default collapsed state until toggled', () => {
@@ -12,5 +12,10 @@ describe('expanded-files-store', () => {
     expect(isFileCollapsed('src/auth/login.ts', true)).toBe(false)
     toggleFile('src/auth/login.ts', false)
     expect(isFileCollapsed('src/auth/login.ts', false)).toBe(true)
+  })
+
+  it('expands a collapsed file on request', () => {
+    expandFile('src/expand-me.ts')
+    expect(isFileCollapsed('src/expand-me.ts', true)).toBe(false)
   })
 })

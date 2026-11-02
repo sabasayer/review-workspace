@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -87,6 +87,31 @@ describe('carryForwardChain', () => {
     carryForwardChain(round2)
     const result = resolveComment(round2, 'cr-retry')
     expect(result.outcome).toBe('resolved')
+  })
+})
+
+describe('a general open change-request', () => {
+  const general = { type: 'raised', id: 'cr-general', createdAt: '2026-08-01T00:00:00.000Z', body: 'Add a changelog', target: { type: 'general' }, kind: 'change-request' }
+
+  beforeEach(() => {
+    appendFileSync(join(round1, 'questions.jsonl'), JSON.stringify(general) + '\n')
+  })
+
+  it('carries forward like any other open change-request', () => {
+    carryForwardChain(round2)
+    const carried = readQuestions(round2).find((c) => c.id === 'cr-general')
+    expect(carried).toMatchObject({ target: { type: 'general' }, kind: 'change-request', status: 'open' })
+  })
+
+  it('gets no Resolution: only the Reviewer resolves it', () => {
+    carryForwardChain(round2)
+    expect(computeCarriedResolutions(round2).map((c) => c.comment.id)).not.toContain('cr-general')
+    expect(listComments(round2).find((c) => c.id === 'cr-general')?.resolution).toBeUndefined()
+  })
+
+  it('stays open until the Reviewer resolves it', () => {
+    carryForwardChain(round2)
+    expect(resolveComment(round2, 'cr-general').outcome).toBe('resolved')
   })
 })
 

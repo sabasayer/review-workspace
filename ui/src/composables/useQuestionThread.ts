@@ -1,11 +1,16 @@
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import type { CommentKind, Target } from '../types.ts'
-import { raiseQuestion, resolveComment, useQuestionsStore, withdrawAndReplaceQuestion } from './questions-store.ts'
+import { raiseQuestion, resolveComment, useQuestionsStore, withdrawAndReplaceQuestion, withdrawQuestion } from './questions-store.ts'
 
-export function useQuestionThread(target: () => Target | undefined) {
+interface SharedDraft {
+  draft: Ref<string>
+  kind: Ref<CommentKind>
+}
+
+export function useQuestionThread(target: () => Target | undefined, shared?: SharedDraft) {
   const store = useQuestionsStore()
-  const draft = ref('')
-  const draftKind = ref<CommentKind>('question')
+  const draft = shared?.draft ?? ref('')
+  const draftKind = shared?.kind ?? ref<CommentKind>('question')
   const busy = ref(false)
   const localError = ref<string | null>(null)
   const editingId = ref<string | null>(null)
@@ -48,6 +53,18 @@ export function useQuestionThread(target: () => Target | undefined) {
     }
   }
 
+  async function remove(questionId: string) {
+    busy.value = true
+    localError.value = null
+    try {
+      await withdrawQuestion(questionId)
+    } catch (err) {
+      localError.value = err instanceof Error ? err.message : String(err)
+    } finally {
+      busy.value = false
+    }
+  }
+
   async function resolve(commentId: string) {
     busy.value = true
     localError.value = null
@@ -71,6 +88,7 @@ export function useQuestionThread(target: () => Target | undefined) {
     submitNewQuestion,
     startEdit,
     submitEdit,
+    remove,
     resolve,
   }
 }

@@ -3,6 +3,7 @@ import { fetchView } from '../api.ts'
 import { loadQuestions } from './questions-store.ts'
 import { loadReviewState } from './review-state-store.ts'
 import { currentFiles } from './view-model-store.ts'
+import { generatorPrompt, refreshBundleStatus } from './bundle-status-store.ts'
 import type { ViewModel } from '../types.ts'
 
 const POLL_INTERVAL_MS = 4000
@@ -16,11 +17,13 @@ export function useReviewView() {
     try {
       viewModel.value = await fetchView()
       currentFiles.value = viewModel.value.files
+      generatorPrompt.value = viewModel.value.generatorPrompt
       error.value = null
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err)
     }
     await loadQuestions()
+    await refreshBundleStatus()
   }
 
   onMounted(async () => {

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "comparison": { "base": "abc1111", "head": "def2222", "title": "Swap the logo" },
+  "annotations": [
+    {
+      "id": "an-1",
+      "target": { "type": "hunk", "path": "src/components/Logo.vue", "hunkIndex": 0 },
+      "summary": "The component now loads the new logo file.",
+      "verdict": "intended",
+      "source": "mr-text"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-proof",
+      "kind": "observed",
+      "description": "The changed snapshot shows the new logo.",
+      "targetIds": ["an-1", "assets/logo.png"],
+      "assetPath": "snapshot/head.png",
+      "baseAssetPath": "snapshot/base.png"
+    }
+  ]
+}

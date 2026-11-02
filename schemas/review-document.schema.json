@@ -44,9 +44,36 @@
       "type": "array",
       "items": { "$ref": "#/$defs/answer" }
     },
-    "summary": { "$ref": "#/$defs/summary" }
+    "summary": { "$ref": "#/$defs/summary" },
+    "intent": { "$ref": "#/$defs/intent" }
   },
   "$defs": {
+    "intent": {
+      "type": "object",
+      "required": ["does", "why", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "does": { "type": "string", "minLength": 1 },
+        "why": { "type": "string", "minLength": 1 },
+        "doesNot": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "sources": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "weakDescription": { "type": "string", "minLength": 1 },
+        "visuals": { "type": "array", "items": { "$ref": "#/$defs/intentVisual" } }
+      }
+    },
+    "intentVisual": {
+      "type": "object",
+      "required": ["assetPath", "caption", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "assetPath": { "type": "string", "minLength": 1 },
+        "baseAssetPath": { "type": "string", "minLength": 1 },
+        "caption": { "type": "string", "minLength": 1 },
+        "source": { "enum": ["mr-text", "snapshot"] }
+      },
+      "if": { "properties": { "source": { "const": "mr-text" } }, "required": ["source"] },
+      "then": { "not": { "required": ["baseAssetPath"] } }
+    },
     "summary": {
       "type": "object",
       "required": ["text"],
@@ -85,6 +112,15 @@
         }
       ]
     },
+    "generalTarget": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": { "type": { "const": "general" } }
+    },
+    "annotationTarget": {
+      "oneOf": [{ "$ref": "#/$defs/target" }, { "$ref": "#/$defs/generalTarget" }]
+    },
     "behavioralGroup": {
       "type": "object",
       "required": ["id", "title", "order"],
@@ -104,9 +140,13 @@
       "additionalProperties": false,
       "properties": {
         "id": { "type": "string", "minLength": 1 },
-        "target": { "$ref": "#/$defs/target" },
+        "target": { "$ref": "#/$defs/annotationTarget" },
         "summary": { "type": "string", "minLength": 1 },
         "kind": { "enum": ["intent", "behavior", "risk"] },
+        "verdict": { "enum": ["intended", "missing", "wrong", "extra", "unclear"] },
+        "severity": { "enum": ["low", "medium", "high"] },
+        "source": { "enum": ["issue", "mr-text", "repo-rule", "nobody"] },
+        "suggestion": { "type": "string", "minLength": 1 },
         "evidenceIds": { "type": "array", "items": { "type": "string" } },
         "relatedTargets": {
           "type": "array",

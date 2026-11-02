@@ -5,17 +5,22 @@ import { anchorId } from '../diff-layout.ts'
 import { isFileCollapsed, toggleFile } from '../composables/expanded-files-store.ts'
 import { isFileReviewed, toggleFileReviewed } from '../composables/review-state-store.ts'
 import { countAdditions, countDeletions, shouldCollapseLargeFile, totalHunkLines } from '../diff-file-stats.ts'
+import type { FilePosition } from '../grouped-files.ts'
 import { fileLevelAnnotations, lineLevelAnnotations } from '../file-annotations.ts'
 import { fileLevelQuestions, scrollToLineInFile } from '../question-entries.ts'
 import AnnotationBadge from './AnnotationBadge.vue'
 import DiffInlineLayout from './DiffInlineLayout.vue'
 import DiffSideBySideLayout from './DiffSideBySideLayout.vue'
 import ImageDiff from './ImageDiff.vue'
+import FileDiagnostics from './FileDiagnostics.vue'
 import PipelineEvidence from './PipelineEvidence.vue'
+import ProofBackLinks from './ProofBackLinks.vue'
+import ProofIcon from './ProofIcon.vue'
 import QuestionThread from './QuestionThread.vue'
 
 const props = defineProps<{
   file: RenderedFile
+  position?: FilePosition
   layout: 'inline' | 'side-by-side'
   annotationNumbers: Map<string, number>
   questions: readonly Question[]
@@ -35,13 +40,15 @@ const questionsAtFileLevel = computed(() => fileLevelQuestions(props.questions, 
 <template>
   <article
     :id="anchorId(file.path)"
-    class="mb-6 overflow-hidden rounded-lg border"
+    class="mb-6 overflow-clip rounded-lg border"
     :class="reviewed ? 'border-success bg-success/5' : 'border-default'"
   >
     <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-default bg-elevated px-4 py-2" :class="{ 'bg-success/10': reviewed }">
       <span class="text-dimmed">◇</span>
       <strong class="truncate font-mono text-sm">{{ file.path }}</strong>
+      <span v-if="position" class="shrink-0 text-xs text-muted">file {{ position.index }} of {{ position.total }}</span>
       <span class="ml-auto flex items-center gap-2">
+        <ProofIcon :proofs="file.proofs" />
         <UBadge v-if="file.binary" color="neutral" variant="subtle" size="sm">binary</UBadge>
         <template v-else>
           <UBadge color="success" variant="subtle" size="sm">+{{ additions }}</UBadge>
@@ -63,6 +70,9 @@ const questionsAtFileLevel = computed(() => fileLevelQuestions(props.questions, 
         </template>
       </span>
     </header>
+
+    <FileDiagnostics :diagnostics="file.diagnostics" />
+    <ProofBackLinks :links="file.proofFor" />
 
     <div v-if="collapsed" class="px-4 py-2 text-xs text-muted">
       Diff collapsed ({{ totalLines }} lines) — click Expand above to view.
@@ -95,7 +105,7 @@ const questionsAtFileLevel = computed(() => fileLevelQuestions(props.questions, 
 
       <div class="group flex flex-wrap items-center gap-3 border-b border-default bg-elevated/50 px-4 py-2 text-xs text-muted">
         <span>Questions on this file:</span>
-        <QuestionThread :target="{ type: 'file', path: file.path }" :questions="questionsAtFileLevel" :answers="answers" />
+        <QuestionThread :target="{ type: 'file', path: file.path }" :questions="questionsAtFileLevel" />
       </div>
 
       <PipelineEvidence
