@@ -1,11 +1,12 @@
+import { isWatcherStale } from './bundle-status.ts'
 import type { Question, Target, WatcherRead } from './types.ts'
 
 export type ThreadState = 'waiting' | 'answering' | 'answered'
 
-export function threadState(question: Question, answered: boolean, watcher: WatcherRead | null): ThreadState | null {
+export function threadState(question: Question, answered: boolean, watcher: WatcherRead | null, now: Date = new Date()): ThreadState | null {
   if (question.kind !== 'question' || question.status !== 'open') return null
   if (answered) return 'answered'
-  const answeringNow = watcher?.status === 'ok' && watcher.watcher.current === question.id
+  const answeringNow = watcher?.status === 'ok' && watcher.watcher.current === question.id && !isWatcherStale(watcher, now)
   return answeringNow ? 'answering' : 'waiting'
 }
 
