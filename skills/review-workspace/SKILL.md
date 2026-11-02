@@ -1,6 +1,6 @@
 ---
 name: review-workspace
-description: Acts as the Generator for a Review Workspace bundle. Use when the user asks to generate, update, or improve a Review Bundle, points at a bundle path, pastes a GitLab/GitHub MR or PR URL and asks to review/analyze it, or pastes the workspace's "Invoke the /review-workspace skill on this bundle <path>" prompt.
+description: Reviews a GitLab/GitHub MR or PR and, only when it helps, opens it in the Review Workspace UI. Use when the user asks to review/analyze an MR or PR (pasted URL), or to generate, update, or improve a Review Bundle, points at a bundle path, or pastes the workspace's "Invoke the /review-workspace skill on this bundle <path>" prompt. Review always produces text findings first; the bundle and UI are optional. Pass --no-ui to get the text findings only.
 ---
 
 # Review workspace (Generator)
@@ -57,20 +57,40 @@ Do this only when the Reviewer said yes to "Should the agent check the feature i
 
 ## Reviewing an MR/PR end-to-end
 
-From a pasted MR/PR URL, run these steps in order.
+The flow has two parts. Part 1 (review) always runs. Part 2 (UI) runs only when there are findings and the user says yes.
 
-1. **Pick a bundle directory.** Anywhere local works, for example `.bundles/<repo-name>-<mr-number>/`. Nothing needs to exist there.
-2. **Scaffold the bundle:**
-   - Fetch GitLab's own diff: `glab mr diff <N> -R <group>/<project> > .bundles/<name>/changes.diff` (GitHub: `gh pr diff <N> -R <owner>/<repo>`). Always use the forge's diff for the bundle. Never build it from the MR's own commits with `git diff`. Inline comments need lines that are in the forge's diff.
+### Part 1: Review (always, text only)
+
+1. Fetch the diff into a temp file, for example `/tmp/<repo-name>-<mr-number>.diff`. GitLab: `glab mr diff <N> -R <group>/<project>`. GitHub: `gh pr diff <N> -R <owner>/<repo>`. Always use the forge's diff. Never build it from the MR's own commits with `git diff`. Inline comments need lines that are in the forge's diff. Do not create a bundle yet.
+2. Fetch the MR or PR description and discussion. Read them before you judge the change.
+3. Analyse the diff. Write each finding as: file, line, problem, suggested fix. Report only real problems. Do not list praise or restatements of the diff.
+4. Report in chat:
+   - **No findings**: say "No findings", add one line on what you checked, and **stop**. Do not scaffold a bundle. Do not start a server.
+   - **Findings**: show the list in chat.
+
+### The `--no-ui` flag
+
+If the caller passes `--no-ui` (or says "no UI", "text only"), stop after step 4. Print the findings, and never ask about the UI. Never scaffold a bundle. Never start a server. Other skills, such as the review step in ship-work, use this to read the text output directly.
+
+### Part 2: UI (optional)
+
+Run this part only if there are findings and `--no-ui` is not set.
+
+1. Ask the user once: "Open these in the review UI?" Do nothing more unless the answer is yes.
+2. **Pick a bundle directory.** Anywhere local works, for example `.bundles/<repo-name>-<mr-number>/`. Nothing needs to exist there.
+3. **Scaffold the bundle:**
+   - Move the diff from Part 1 to `.bundles/<name>/changes.diff`. The engine accepts both git `diff --git` and bare `---`/`+++` formats.
    - Fetch the MR's metadata: `glab api projects/<url-encoded-group%2Fproject>/merge_requests/<N>` (GitHub: `gh api repos/<owner>/<repo>/pulls/<N>`). Take `diff_refs.base_sha`/`head_sha`, `title`, `iid`, `web_url`, `author.name`/`username`, `source_branch`, `target_branch`, `description`.
    - Write `.bundles/<name>/review.json` with just `{ schemaVersion: 2, comparison: { repository, base, head, title, number, url, author, sourceBranch, targetBranch, description } }`. This is the only file you hand-write. The Generator writes the rest.
    - Write `live-head.json` (see "Live head" below).
    - If the description references uploaded images (`/uploads/<hash>/<file>`), fetch them via `glab api projects/<...>/uploads/<hash>/<file>` into `.bundles/<name>/assets/uploads/<hash>/<file>`. A browser `<img>` that points at gitlab.com is blocked for private repos. The bundle's own `assets/` and the engine's same-origin `/assets/*` route avoid that.
    - **Changed images are a hard step.** List every `png`/`jpg`/`gif`/`webp` and `Binary files ... differ` line in `changes.diff`. For each one, fetch the base and the head blob now (`git show <sha>:<path>` in the Setup worktree, or `glab api` as in [FRAMEWORK.md](FRAMEWORK.md) "Binary/image Targets") into `.bundles/<name>/assets/`. The UI shows nothing for an image without them, and does not say why. Do not start the Generator before every changed image has both files, or a recorded `gap`.
    - Validate it opens: `npx review-workspace open .bundles/<name>` should print "Bundle is valid."
-3. **Invoke the Generator** (the next section) against that bundle path.
-4. **Serve it**: `npx review-workspace serve .bundles/<name> --port 4317`. One process hosts the API and the UI. Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first. If something is already listening, ask the user whether to switch it or use another port. Give the user the printed `http://127.0.0.1:<port>` URL. **Always give the printed write token too, and say what it is for.** Viewing needs no token. Raising or answering a Question in the UI does.
-5. **Check the UI.** After publish, open the served URL. Look at a sample of notes and Answers: markdown and code blocks render, Target code shows, each image shows. Fix the bundle and publish again when something is off.
+4. **Invoke the Generator** (the next section) against that bundle path. Carry the Part 1 findings into Annotations.
+5. **Serve it**: `npx review-workspace serve .bundles/<name> --port 4317`. One process hosts the API and the UI. Check `lsof -nP -iTCP:4317 -sTCP:LISTEN` first. If something is already listening, ask the user whether to switch it or use another port. Give the user the printed `http://127.0.0.1:<port>` URL. **Always give the printed write token too, and say what it is for.** Viewing needs no token. Raising or answering a Question in the UI does.
+6. **Check the UI.** After publish, open the served URL. Look at a sample of notes and Answers: markdown and code blocks render, Target code shows, each image shows. Fix the bundle and publish again when something is off.
+
+The `.review-feedback/` hand-off file for `address-review-feedback` is still written by `publish`, as described in "Hand-off export". It exists only after Part 2, because it comes from change-request Comments raised in the UI.
 
 For an **existing** bundle someone already reviews (Questions raised, feedback on the UI itself), go straight to the Generator's **Improve** branch. Do not scaffold again.
 
@@ -79,6 +99,8 @@ For an **existing** bundle someone already reviews (Questions raised, feedback o
 Whenever you open or update a bundle, fetch the MR's live head (`head_sha` from the metadata call, or `glab api .../merge_requests/<N>`). Write `live-head.json` into the bundle: `{ "head": "<sha>", "checkedAt": "<ISO date and time>" }`. If the fetch fails, do not write the file. The engine only reads this file.
 
 ## Generate
+
+This section is Part 2 only. Never start it before the user said yes to the UI, unless they pointed you at an existing bundle or pasted the workspace prompt.
 
 1. Acquire or read the Comparison's complete Unified Patch and any available evidence (issue/MR description, discussion threads — fetch and read these before writing Evidence/Verification, see [FRAMEWORK.md](FRAMEWORK.md)'s non-negotiable #7 and "Discussion Evidence" — pipeline results, base/head image blobs, open Comments, questions and change-requests alike, in `questions.jsonl`).
 2. Write the `intent` first: what the change does, why, what it does not do, and the `sources` of those claims. Read the MR text and follow its linked issue before you write it. If the MR text is too weak to state the intent, set `weakDescription` and say what is missing. If a parent commit of the MR is stale, say so in the Intent. Write `intent.visuals` from images in the MR text and from changed snapshot images (base and head). Never use your own app screenshot. See [FRAMEWORK.md](FRAMEWORK.md) "Visuals".
@@ -92,7 +114,7 @@ Whenever you open or update a bundle, fetch the MR's live head (`head_sha` from 
 10. Save the result as `review.next.json` in the bundle directory.
 11. Run `npx review-workspace publish <bundle> --repo <target-repo-path>` and report the outcome, including any Diagnostics. Always pass `--repo`. It is the local repo under review (the Setup worktree is fine). See "Hand-off export". Never run publish in a way that prompts.
 
-Generation is complete when `publish` succeeds, every source file/hunk in the patch is covered by at least a File-level Target, and the UI check in "Reviewing an MR/PR end-to-end" step 5 is done.
+Generation is complete when `publish` succeeds, every source file/hunk in the patch is covered by at least a File-level Target, and the UI check in "Reviewing an MR/PR end-to-end" Part 2 step 6 is done.
 
 ## Watcher
 
@@ -150,6 +172,7 @@ Always report back where this landed — see "Report back" below.
 
 Report:
 
+- Always: the Part 1 findings (or "No findings"), and whether the UI was offered, accepted, or skipped by `--no-ui`. Skip the rest of this list if no bundle was made.
 - Bundle path and `publish` result (success, or blocking reason/Diagnostics)
 - Comparison identity reviewed (base/head)
 - File, hunk, addition, and deletion reconciliation against the patch

@@ -1,3 +1,10 @@
+## [1.10.2](https://github.com/sabasayer/review-workspace/compare/v1.10.1...v1.10.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **validator:** flag Verification gaps with no concrete anchor ([8a39d2d](https://github.com/sabasayer/review-workspace/commit/8a39d2d5ccd0bef2dec2f12ea07d33d5b9ddae0c))
+
 ## [1.10.1](https://github.com/sabasayer/review-workspace/compare/v1.10.0...v1.10.1) (2026-09-18)
 
 
