@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/sabasayer/review-workspace/compare/v1.10.2...v1.11.0) (2026-11-02)
+
+
+### Features
+
+* review flow round 1 (notes, panel, previews, proof links, live head) ([00c39f8](https://github.com/sabasayer/review-workspace/commit/00c39f8d7582b26572cfb57eba2f44473c2992e7))
+
 ## [1.10.2](https://github.com/sabasayer/review-workspace/compare/v1.10.1...v1.10.2) (2026-09-29)
 
 
