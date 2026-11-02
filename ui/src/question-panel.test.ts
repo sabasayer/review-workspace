@@ -35,6 +35,18 @@ describe('threadState', () => {
     expect(threadState(question(), false, watcher('q1'))).toBe('answering')
   })
 
+  it('stays answering when the watcher is fresh and current is set', () => {
+    const now = new Date('2026-10-30T10:01:00.000Z')
+    const fresh = watcher('q1', { updatedAt: '2026-10-30T10:00:50.000Z' })
+    expect(threadState(question(), false, fresh, now)).toBe('answering')
+  })
+
+  it('is waiting when the watcher is stale, even if current is set', () => {
+    const now = new Date('2026-10-30T10:10:00.000Z')
+    const old = watcher('q1', { updatedAt: '2026-10-30T10:00:00.000Z' })
+    expect(threadState(question(), false, old, now)).toBe('waiting')
+  })
+
   it('is waiting when nobody picked it up', () => {
     expect(threadState(question(), false, watcher(null))).toBe('waiting')
     expect(threadState(question(), false, watcher('other'))).toBe('waiting')

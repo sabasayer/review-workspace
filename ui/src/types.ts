@@ -237,4 +237,4 @@ export interface Question {
 export type WatcherRead =
   | { status: 'absent' }
   | { status: 'invalid'; message: string }
-  | { status: 'ok'; watcher: { enabled: boolean; cap: number; used: number; current: string | null } }
+  | { status: 'ok'; watcher: { enabled: boolean; cap: number; used: number; current: string | null; updatedAt?: string } }

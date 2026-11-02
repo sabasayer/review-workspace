@@ -9,6 +9,8 @@ export interface WatcherState {
   used: number
   /** Id of the Question the watcher is answering now, or null. */
   current: string | null
+  /** ISO date-time of the last write. The watcher writes it on every tick as a heartbeat. */
+  updatedAt?: string
 }
 
 export type WatcherRead =
@@ -22,12 +24,14 @@ function isCount(value: unknown): value is number {
 
 function parseWatcher(value: unknown): WatcherState | string {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return `${WATCHER_FILE} must be a JSON object`
-  const { enabled, cap, used, current = null } = value as Record<string, unknown>
+  const { enabled, cap, used, current = null, updatedAt } = value as Record<string, unknown>
   if (typeof enabled !== 'boolean') return 'enabled must be true or false'
   if (!isCount(cap)) return 'cap must be a whole number of 0 or more'
   if (!isCount(used)) return 'used must be a whole number of 0 or more'
   if (current !== null && typeof current !== 'string') return 'current must be a Question id or null'
-  return { enabled, cap, used, current }
+  if (updatedAt === undefined) return { enabled, cap, used, current }
+  if (typeof updatedAt !== 'string' || Number.isNaN(Date.parse(updatedAt))) return 'updatedAt must be an ISO date-time string'
+  return { enabled, cap, used, current, updatedAt }
 }
 
 export function readWatcher(bundlePath: string): WatcherRead {

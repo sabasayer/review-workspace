@@ -79,7 +79,8 @@ export function writeAnswer(bundle, questionId, body) {
 }
 
 export function writeWatcherState(bundle, state) {
-  writeFileSync(join(bundle, 'watcher.json'), JSON.stringify(state, null, 2))
+  const stamped = { ...state, updatedAt: new Date().toISOString() }
+  writeFileSync(join(bundle, 'watcher.json'), JSON.stringify(stamped, null, 2))
 }
 
 const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob']
@@ -176,6 +177,14 @@ export function selfCheck() {
       modelFailed = true
     }
     const afterError = readJson(join(bundle, 'watcher.json'), {})
+    const idleBundle = join(dir, 'idle')
+    mkdirSync(idleBundle)
+    const staleStamp = '2000-01-01T00:00:00.000Z'
+    writeFileSync(join(idleBundle, 'watcher.json'), JSON.stringify({ enabled: true, cap: 5, used: 0, current: null, updatedAt: staleStamp }))
+    const beforeTick = Date.now()
+    processOnce({ bundle: idleBundle, repo: dir, cap: 5, model: 'x', run, publish })
+    const idleStamp = Date.parse(readJson(join(idleBundle, 'watcher.json'), {}).updatedAt)
+    const isIsoDate = (value) => typeof value === 'string' && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString() === value
     const checks = [
       ['answers 2 questions up to the cap', doc.answers.length === 2],
       ['skips the change-request', !doc.answers.some((a) => a.questionId === 'c1')],
@@ -188,6 +197,8 @@ export function selfCheck() {
       ['prompt tells the model to read, then answer', prompts[0].includes('Read only what the Question needs')],
       ['writes the Question id as current while it works', currentWhileRunning[0] === 'q1' && currentWhileRunning[1] === 'q2'],
       ['clears current after the Answer', afterAnswers.current === null && 'current' in afterAnswers],
+      ['writes updatedAt as an ISO date-time', isIsoDate(afterAnswers.updatedAt)],
+      ['refreshes updatedAt on a tick with nothing to answer', idleStamp >= beforeTick],
       ['clears current when the model fails', modelFailed && afterError.current === null && afterError.enabled === true],
     ]
     const failed = checks.filter(([, ok]) => !ok)

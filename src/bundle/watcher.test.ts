@@ -57,4 +57,24 @@ describe('readWatcher', () => {
     writeWatcher(JSON.stringify(value))
     expect(readWatcher(dir)).toMatchObject({ status: 'invalid', message: expect.stringContaining(field) })
   })
+
+  describe('updatedAt', () => {
+    it('keeps a valid updatedAt', () => {
+      const updatedAt = '2026-01-02T03:04:05.000Z'
+      writeWatcher(JSON.stringify({ enabled: true, cap: 20, used: 3, updatedAt }))
+      expect(readWatcher(dir)).toEqual({ status: 'ok', watcher: { enabled: true, cap: 20, used: 3, current: null, updatedAt } })
+    })
+
+    it('stays valid with no updatedAt, and leaves it out', () => {
+      writeWatcher(JSON.stringify({ enabled: true, cap: 20, used: 3 }))
+      const read = readWatcher(dir)
+      expect(read).toMatchObject({ status: 'ok' })
+      expect(read.status === 'ok' && 'updatedAt' in read.watcher).toBe(false)
+    })
+
+    it.each([['not a date'], [''], [12345], [null]])('reports invalid for updatedAt %j', (updatedAt) => {
+      writeWatcher(JSON.stringify({ enabled: true, cap: 20, used: 3, updatedAt }))
+      expect(readWatcher(dir)).toMatchObject({ status: 'invalid', message: expect.stringContaining('updatedAt') })
+    })
+  })
 })

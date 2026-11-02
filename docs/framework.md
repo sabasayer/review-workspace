@@ -46,7 +46,7 @@ review-bundle/
 - `changes.diff` is the immutable authoritative Unified Patch.
 - `questions.jsonl` is the app-owned append-only Question inbox.
 - `state.json` is the app-owned single-Reviewer state.
-- `watcher.json` is optional. The watcher writes `{ enabled, cap, used, current }`. The engine only reads it.
+- `watcher.json` is optional. The watcher writes `{ enabled, cap, used, current, updatedAt }`. `updatedAt` is an ISO date-time. It is the heartbeat (a time stamp the watcher renews on each tick). The watcher writes it every 3 s. The UI marks the watcher as stopped when `updatedAt` is over 30 s old. While `current` holds a Question id, the limit is 5 min, because one answer can take minutes. A file with no `updatedAt` never counts as stopped. The engine only reads it.
 - `live-head.json` is optional. The Generator writes `{ head, checkedAt }` with the newest commit of the MR. The engine only reads it. See [ADR 0005](adr/0005-note-fields-general-target-proof-links-live-head.md).
 - `assets/` contains local evidence referenced by relative path.
 
