@@ -1,0 +1,13 @@
+diff --git a/src/components/Logo.vue b/src/components/Logo.vue
+index 1111111..2222222 100644
+--- a/src/components/Logo.vue
++++ b/src/components/Logo.vue
+@@ -1,4 +1,4 @@
+ <template>
+-  <img src="/assets/logo-old.png" alt="Logo" />
++  <img src="/assets/logo.png" alt="Logo" />
+ </template>
+ 
+diff --git a/assets/logo.png b/assets/logo.png
+index 1111111..2222222 100644
+Binary files a/assets/logo.png and b/assets/logo.png differ

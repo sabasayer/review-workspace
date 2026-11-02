@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Comparison } from '../types.ts'
+import { panelBadge } from '../question-panel.ts'
+import PanelButtonBadge from './PanelButtonBadge.vue'
 
 defineProps<{
   headerTitle: string
@@ -8,11 +10,14 @@ defineProps<{
   navVisible: boolean
   layout: 'inline' | 'side-by-side'
   openQuestionCount: number
+  newAnswerCount: number
   promptCopied: boolean
   hasWriteToken: boolean
   writeTokenDraft: string
   focusMode: boolean
   focusModeCount: number
+  liveAnswersLabel: string
+  answersUsedLabel: string | null
 }>()
 
 const emit = defineEmits<{
@@ -72,10 +77,24 @@ const emit = defineEmits<{
     <h1 v-else class="truncate text-sm font-semibold">{{ headerTitle }}</h1>
 
     <div class="ml-auto flex items-center gap-3">
-      <UTooltip v-if="comparison" text="All questions">
-        <UChip :text="openQuestionCount" :show="openQuestionCount > 0" color="warning" size="sm">
-          <UButton size="sm" variant="ghost" color="neutral" icon="i-lucide-message-circle-question" @click="emit('openQuestions')" />
-        </UChip>
+      <span data-testid="live-answers" class="text-xs text-muted">
+        {{ liveAnswersLabel }}<template v-if="answersUsedLabel"> · {{ answersUsedLabel }}</template>
+      </span>
+
+      <div class="h-5 w-px bg-default" />
+
+      <UTooltip v-if="comparison" text="Question panel">
+        <span class="relative inline-flex">
+          <UButton
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-message-circle-question"
+            aria-label="Question panel"
+            @click="emit('openQuestions')"
+          />
+          <PanelButtonBadge :badge="panelBadge(newAnswerCount, openQuestionCount)" />
+        </span>
       </UTooltip>
 
       <div class="h-5 w-px bg-default" />

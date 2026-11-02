@@ -31,6 +31,7 @@ function file(path: string, lines: Array<{ text: string; newLine?: number; oldLi
         oldLines: lines.length,
         newStart: 1,
         newLines: lines.length,
+        proofs: [],
         lines: lines.map((l, i) => ({
           id: `${path}#0#${i}`,
           kind: 'context',
@@ -45,6 +46,8 @@ function file(path: string, lines: Array<{ text: string; newLine?: number; oldLi
     ],
     annotations: [],
     imageEvidence: [],
+    proofs: [],
+    proofFor: [],
     pipelineEvidence: [],
     verification: [],
     diagnostics: [],

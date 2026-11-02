@@ -373,6 +373,16 @@ describe('render — round-N carry-forward', () => {
   })
 })
 
+describe('intent', () => {
+  it('passes the Intent through to the view model unchanged', () => {
+    const dir = bundlePath('valid')
+    const result = validateBundle(dir)
+    const intent = { does: 'Adds a limiter.', why: 'Stops brute force.', sources: ['MR text'] }
+    const vm = render({ ...(result.document as ReviewDocument), intent }, result.patch!, result.diagnostics!, dir)
+    expect(vm.intent).toEqual(intent)
+  })
+})
+
 describe('no Generator is ever launched by this codebase', () => {
   it('the renderer and server source contain no process-spawn or AI-API call sites', () => {
     const files = [
@@ -389,5 +399,105 @@ describe('no Generator is ever launched by this codebase', () => {
         expect(source).not.toContain(term.toLowerCase())
       }
     }
+  })
+})
+
+function renderBundle(name: string) {
+  const dir = bundlePath(name)
+  const result = validateBundle(dir)
+  return render(result.document as ReviewDocument, result.patch!, result.diagnostics!, dir)
+}
+
+describe('general Target', () => {
+  it('carries a general Annotation onto the view model and not onto any file', () => {
+    const vm = renderBundle('general-target')
+    expect(vm.generalAnnotations.map((a) => a.id)).toEqual(['an-1'])
+    expect(vm.generalAnnotations[0].target).toEqual({ type: 'general' })
+    expect(vm.files.flatMap((f) => f.annotations).map((a) => a.id)).toEqual(['an-2'])
+  })
+
+  it('has no general Annotations when the document has none', () => {
+    expect(renderBundle('valid').generalAnnotations).toEqual([])
+  })
+
+  it('counts a general Annotation that is a gap in openGaps', () => {
+    expect(renderBundle('general-target').openGaps).toBe(1)
+  })
+
+  it('does not count a general Annotation whose verdict is intended', () => {
+    const dir = bundlePath('general-target')
+    const result = validateBundle(dir)
+    const document = structuredClone(result.document as ReviewDocument)
+    document.annotations![0].verdict = 'intended'
+    expect(render(document, result.patch!, [], dir).openGaps).toBe(0)
+  })
+
+  it('counts Verification gaps in openGaps too', () => {
+    const dir = bundlePath('diagnostics')
+    const result = validateBundle(dir)
+    const vm = render(result.document as ReviewDocument, result.patch!, result.diagnostics!, dir)
+    const verificationGaps = new Set(vm.files.flatMap((f) => f.verification).filter((v) => v.status === 'gap').map((v) => v.id))
+    expect(vm.openGaps).toBe(verificationGaps.size)
+  })
+})
+
+describe('note fields', () => {
+  it('carries verdict, severity, source and suggestion onto a rendered line Annotation', () => {
+    const vm = renderBundle('general-target')
+    const rendered = vm.files.flatMap((f) => f.annotations).find((a) => a.id === 'an-2')
+    expect(rendered).toMatchObject({ verdict: 'wrong', severity: 'high', source: 'nobody', suggestion: 'Count only failed attempts.' })
+  })
+})
+
+describe('Intent visuals', () => {
+  it('passes the visuals through on the Intent', () => {
+    const vm = renderBundle('visuals')
+    expect(vm.intent?.visuals).toHaveLength(2)
+    expect(vm.intent?.visuals?.[1]).toMatchObject({ source: 'snapshot', baseAssetPath: 'snapshot/base.png' })
+  })
+})
+
+describe('proof links', () => {
+  it('lists the proof on the hunk of the code file', () => {
+    const vm = renderBundle('proof-link')
+    const code = vm.files.find((f) => f.path === 'src/components/Logo.vue')!
+    expect(code.hunks[0].proofs).toEqual([
+      {
+        evidenceId: 'ev-proof',
+        caption: 'The changed snapshot shows the new logo.',
+        imagePath: 'assets/logo.png',
+        assetPath: 'snapshot/head.png',
+        baseAssetPath: 'snapshot/base.png',
+      },
+    ])
+    expect(code.proofs).toEqual([])
+  })
+
+  it('lists a file-level proof on the file when the link has no hunk', () => {
+    const dir = bundlePath('proof-link')
+    const result = validateBundle(dir)
+    const document = structuredClone(result.document as ReviewDocument)
+    document.annotations![0].target = { type: 'file', path: 'src/components/Logo.vue' }
+    const vm = render(document, result.patch!, [], dir)
+    const code = vm.files.find((f) => f.path === 'src/components/Logo.vue')!
+    expect(code.proofs.map((p) => p.evidenceId)).toEqual(['ev-proof'])
+    expect(code.hunks[0].proofs).toEqual([])
+  })
+
+  it('links the image back to its code', () => {
+    const vm = renderBundle('proof-link')
+    const image = vm.files.find((f) => f.path === 'assets/logo.png')!
+    expect(image.proofFor).toEqual([{ evidenceId: 'ev-proof', path: 'src/components/Logo.vue', hunkIndex: 0, annotationId: 'an-1' }])
+  })
+
+  it('shows the proof image only on the image file, not twice on the code file', () => {
+    const vm = renderBundle('proof-link')
+    expect(vm.files.find((f) => f.path === 'src/components/Logo.vue')!.imageEvidence).toEqual([])
+    expect(vm.files.find((f) => f.path === 'assets/logo.png')!.imageEvidence.map((e) => e.id)).toEqual(['ev-proof'])
+  })
+
+  it('has empty proof lists on a bundle with no proof', () => {
+    const vm = renderBundle('valid')
+    expect(vm.files.every((f) => f.proofs.length === 0 && f.proofFor.length === 0)).toBe(true)
   })
 })

@@ -53,8 +53,8 @@ test.describe('round-N carry-forward', () => {
     // render layer actually carried them forward (not just the round's own document).
     await expect(page.getByRole('heading', { name: 'Structured logging' })).toBeVisible()
 
-    await page.getByRole('banner').getByRole('button').nth(2).click()
-    const dialog = page.getByRole('dialog', { name: 'Questions' })
+    await page.getByRole('button', { name: 'Question panel' }).click()
+    const dialog = page.getByTestId('question-panel')
     await expect(dialog).toBeVisible()
 
     await expect(dialog.getByText('Please add a backoff between retries.')).toBeVisible()
@@ -71,23 +71,21 @@ test.describe('round-N carry-forward', () => {
 
     await page.screenshot({ path: join(docScreenshots, 'round-carry-forward-comments.png') })
 
-    // Selecting a carried comment closes the slideover and jumps straight to its
-    // Target in this round's own diff — proving it's actionable here, not read-only
-    // history copied in for display only.
-    const retryRow = dialog.locator('li', { hasText: 'Please add a backoff between retries.' })
-    await retryRow.locator('button').first().click()
-    await expect(dialog).toBeHidden()
+    // "Show in code" jumps straight to the Target in this round's own diff and keeps
+    // the panel open — proving it's actionable here, not read-only history copied in.
+    const retryRow = dialog.getByTestId('question-thread').filter({ hasText: 'Please add a backoff between retries.' })
+    await retryRow.getByRole('button', { name: 'Show in code' }).click()
+    await expect(dialog).toBeVisible()
 
-    const retryFile = page.locator('article', { hasText: 'src/retry.ts' }).first()
+    const retryFile = page.locator('article[id]', { hasText: 'src/retry.ts' }).first()
     const retryBadge = retryFile.getByRole('button', { name: /^Change request/ })
     await expect(retryBadge).toBeVisible()
     await retryBadge.click()
 
-    await page.getByRole('button', { name: 'Mark resolved' }).click()
+    await retryRow.getByRole('button', { name: 'Mark resolved' }).click()
     await expect(retryBadge).toHaveText('✓')
 
     // Resolved comments persist and stay visible (collapsed) in this round's view too.
-    await page.getByRole('banner').getByRole('button').nth(2).click()
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('Please add a backoff between retries.')).toBeVisible()
     await expect(dialog.getByText('Resolved', { exact: true }).first()).toBeVisible()

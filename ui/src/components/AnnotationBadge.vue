@@ -7,7 +7,10 @@ import { highlightCode } from '../highlight.ts'
 import { resolveTargetPreview } from '../target-preview.ts'
 import { currentFiles } from '../composables/view-model-store.ts'
 import { isNoteResolved, toggleNoteResolved } from '../composables/review-state-store.ts'
+import DiffLinesPreview from './DiffLinesPreview.vue'
 import AskQuestionForm from './AskQuestionForm.vue'
+import NoteSuggestion from './NoteSuggestion.vue'
+import NoteVerdict from './NoteVerdict.vue'
 
 const props = defineProps<{ annotation: Annotation; number: number }>()
 
@@ -26,6 +29,8 @@ function goToRelatedTarget(path: string) {
 
 // Inline expand-on-hover rather than a second floating popover nested inside this one —
 // a nested overlay risks being treated as "outside" the note popover's own dismiss logic.
+const targetPreview = computed(() => resolveTargetPreview(currentFiles.value, props.annotation.target))
+
 const hoveredIndex = ref<number | null>(null)
 
 function previewFor(i: number) {
@@ -55,10 +60,15 @@ function previewFor(i: number) {
             :model-value="resolved"
             label="Resolved"
             size="sm"
+            :ui="{ base: 'ring-control' }"
             @update:model-value="toggleNoteResolved(annotation.id)"
           />
         </span>
+        <NoteVerdict class="mb-1" :annotation="annotation" />
+        <p class="mb-1 truncate font-mono text-[10px] text-dimmed">{{ annotation.target.path }}</p>
+        <DiffLinesPreview v-if="targetPreview" class="mb-2" :lines="targetPreview.lines" />
         <div class="markdown-body text-muted" v-html="renderMarkdown(annotation.summary)" />
+        <NoteSuggestion :suggestion="annotation.suggestion" />
         <ul v-if="annotation.relatedTargets?.length" class="mt-2 space-y-1 border-t border-default pt-2">
           <li
             v-for="(related, i) in annotation.relatedTargets"

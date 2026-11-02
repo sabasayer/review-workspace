@@ -19,7 +19,7 @@ export function resolveQuestionEntries(
   return questions.map((question): QuestionEntry => {
     const answer = answers.find((a) => a.questionId === question.id)
     const target = question.target
-    if (!target) return { question, answer }
+    if (!target || target.type === 'general') return { question, answer }
     const file = files.find((f) => f.path === target.path)
     if (!file) return { question, answer, filePath: target.path }
     if (target.type === 'line') {
@@ -32,6 +32,11 @@ export function resolveQuestionEntries(
     }
     return { question, answer, filePath: file.path }
   })
+}
+
+/** A deleted Comment (withdrawn with no replacement) leaves no trace in the UI; a rephrased one stays as history. */
+export function visibleQuestions(questions: readonly Question[]): Question[] {
+  return questions.filter((q) => q.status !== 'withdrawn' || q.supersededBy !== undefined)
 }
 
 export function countOpenQuestions(entries: QuestionEntry[]): number {
@@ -62,7 +67,7 @@ export function buildLineTarget(filePath: string, text: string, oldLine?: number
 }
 
 export function questionsForFile(questions: readonly Question[], filePath: string): Question[] {
-  return questions.filter((q) => q.target?.path === filePath)
+  return questions.filter((q) => q.target?.type !== 'general' && q.target?.path === filePath)
 }
 
 export function fileLevelQuestions(questions: readonly Question[], filePath: string): Question[] {
@@ -79,4 +84,14 @@ export function questionsForLine(
   return questionsForFile(questions, filePath).filter(
     (q) => q.target?.type === 'line' && q.target.side === side && q.target.line === line,
   )
+}
+
+/** The Thread under an inline note: every Comment raised on the exact line the note points at. */
+export function threadForNote(questions: readonly Question[], target: Target): Question[] {
+  if (target.type !== 'line') return []
+  return questionsForLine(questions, target.path, target.side, target.line)
+}
+
+export function generalComments(questions: readonly Question[]): Question[] {
+  return questions.filter((q) => q.target?.type === 'general')
 }

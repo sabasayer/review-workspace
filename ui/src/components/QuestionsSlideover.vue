@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { QuestionEntry } from '../question-entries.ts'
+import { renderMarkdown } from '../markdown.ts'
 import { useCollapsedComments } from '../composables/useCollapsedComments.ts'
 import {
   commentKindColor,
@@ -70,7 +71,7 @@ function isCollapsed(entry: QuestionEntry): boolean {
               </p>
               <div v-if="entry.answer" class="mt-2 border-t border-default pt-2 text-muted">
                 <p class="mb-0.5 text-[10px] font-bold">Answer</p>
-                <p class="leading-relaxed whitespace-pre-wrap">{{ entry.answer.body }}</p>
+                <div class="markdown-body leading-relaxed" v-html="renderMarkdown(entry.answer.body)" />
               </div>
             </button>
           </template>

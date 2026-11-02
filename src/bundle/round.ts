@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import type { Comparison, ReviewDocument } from '../schema/types.ts'
+import { carryForwardChain } from './carry-forward.ts'
 
 export interface Chain {
   mrKey: string
@@ -27,7 +28,7 @@ export interface ScaffoldNextRoundOptions {
 
 /**
  * A stable cross-round identity for one MR: repo slug + number, e.g.
- * "founda/application/xds-viewer-ui!367".
+ * "group/project!367".
  */
 export function mrKeyFor(comparison: Comparison): string {
   if (!comparison.repository || !comparison.number) {
@@ -76,7 +77,8 @@ export function checkRound(bundlePath: string, liveHead: string): RoundCheck {
  * Scaffolds a new sibling round bundle for an MR whose live head has moved
  * past what `bundlePath` recorded. Never mutates `bundlePath` (ADR 0002) —
  * only creates the new `<name>-r{N}` directory alongside it, with its own
- * Comparison, Unified Patch, and a `chain.json` linking it back.
+ * Comparison, Unified Patch, a `chain.json` linking it back, and a
+ * `questions.jsonl` holding the previous round's open change-requests.
  */
 export function scaffoldNextRound(
   bundlePath: string,
@@ -116,6 +118,7 @@ export function scaffoldNextRound(
     ),
   )
   writeFileSync(join(newBundlePath, 'chain.json'), JSON.stringify(chain, null, 2))
+  carryForwardChain(newBundlePath)
 
   return { bundlePath: newBundlePath, chain }
 }

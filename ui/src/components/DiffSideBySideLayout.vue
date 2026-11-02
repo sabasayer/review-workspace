@@ -9,6 +9,7 @@ import { hiddenLineCount, visibleSlice } from '../hunk-visibility.ts'
 import { handleSymbolClick } from '../symbol-occurrences.ts'
 import { useSyncedScroll } from '../composables/useSyncedScroll.ts'
 import DiffLineNote from './DiffLineNote.vue'
+import ProofIcon from './ProofIcon.vue'
 import QuestionThread from './QuestionThread.vue'
 
 const props = defineProps<{
@@ -48,6 +49,7 @@ function hiddenRows(hunkIndex: number): number {
           <div class="table w-max min-w-full border-collapse">
             <div class="table-caption caption-top whitespace-nowrap bg-elevated px-3 py-1 text-primary">
               @@ -{{ hunk.oldStart }},{{ hunk.oldLines }} @@
+              <ProofIcon :proofs="hunk.proofs" class="ml-2 align-middle" />
             </div>
             <div
               v-for="(row, ri) in visibleRows(hi)"
@@ -63,7 +65,6 @@ function hiddenRows(hunkIndex: number): number {
                   v-if="row.left"
                   :target="{ type: 'line', path: filePath, side: 'base', line: row.left.oldLine!, expectedText: row.left.text }"
                   :questions="questionsForLine(questions, filePath, 'base', row.left.oldLine)"
-                  :answers="answers"
                 />
               </span>
               <span class="table-cell whitespace-pre px-2 align-baseline text-[var(--syntax-text)]">
@@ -104,7 +105,6 @@ function hiddenRows(hunkIndex: number): number {
                   v-if="row.right"
                   :target="{ type: 'line', path: filePath, side: 'head', line: row.right.newLine!, expectedText: row.right.text }"
                   :questions="questionsForLine(questions, filePath, 'head', row.right.newLine)"
-                  :answers="answers"
                 />
               </span>
               <span class="table-cell whitespace-pre px-2 align-baseline text-[var(--syntax-text)]">

@@ -26,6 +26,7 @@ const files: RenderedFile[] = [
         oldLines: 4,
         newStart: 40,
         newLines: 8,
+        proofs: [],
         lines: [
           line('context', 40, 40),
           line('context', 41, 41),
@@ -36,6 +37,8 @@ const files: RenderedFile[] = [
     ],
     annotations: [],
     imageEvidence: [],
+    proofs: [],
+    proofFor: [],
     pipelineEvidence: [],
     diagnostics: [],
   },

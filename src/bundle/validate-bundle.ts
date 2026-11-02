@@ -7,7 +7,7 @@ import type { Diagnostic } from './diagnostics.ts'
 import type { ReviewDocument } from '../schema/types.ts'
 import { DEFAULT_LIMITS, type BundleLimits } from '../security/limits.ts'
 
-export const SUPPORTED_SCHEMA_VERSIONS = [1]
+export const SUPPORTED_SCHEMA_VERSIONS = [1, 2]
 
 export type BlockingReason =
   | 'unparseable-json'

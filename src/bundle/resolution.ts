@@ -1,5 +1,5 @@
 import type { ParsedPatch } from '../patch/types.ts'
-import type { Target } from '../schema/types.ts'
+import type { CodeTarget } from '../schema/types.ts'
 import type { Comment } from '../questions/types.ts'
 import { resolveTarget } from './resolve-diagnostics.ts'
 import { incrementalHunks } from './incremental-patch.ts'
@@ -20,7 +20,14 @@ export interface Resolution {
   evidence: string
 }
 
-function targetHunkIndex(target: Target, patch: ParsedPatch): number | undefined {
+export type CodeComment = Comment & { target?: CodeTarget }
+
+/** A general Comment has no place in the patch, so it has no Resolution. */
+export function isCodeComment(comment: Comment): comment is CodeComment {
+  return comment.target?.type !== 'general'
+}
+
+function targetHunkIndex(target: CodeTarget, patch: ParsedPatch): number | undefined {
   const file = patch.files.find((f) => f.path === target.path)
   if (!file) return undefined
   if (target.type === 'hunk') return target.hunkIndex
@@ -35,7 +42,7 @@ function targetHunkIndex(target: Target, patch: ParsedPatch): number | undefined
  * patch. `target-gone` reuses the same Target-resolution logic the engine already uses
  * to flag stale Targets in `resolve-diagnostics.ts`, rather than reinventing it.
  */
-export function evaluateResolution(comment: Comment, previousPatch: ParsedPatch, currentPatch: ParsedPatch): Resolution {
+export function evaluateResolution(comment: CodeComment, previousPatch: ParsedPatch, currentPatch: ParsedPatch): Resolution {
   const target = comment.target
 
   if (!target) {

@@ -25,6 +25,20 @@ describe('publishBundle', () => {
     expect(result.blockingReason).toBe('missing-next')
   })
 
+  it('returns the diagnostics of the staged document', () => {
+    const staged = {
+      schemaVersion: 1,
+      comparison: { base: 'abc1111', head: 'def2222' },
+      annotations: [{ id: 'an-1', target: { type: 'binary', path: 'shots/page.png' }, summary: 'Page changed.' }],
+    }
+    writeFileSync(join(workBundle, 'review.next.json'), JSON.stringify(staged))
+
+    const result = publishBundle(workBundle)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toContainEqual({ kind: 'image-without-comparison', path: 'shots/page.png' })
+  })
+
   it('atomically replaces review.json on a valid staged update', () => {
     const originalReviewJson = readFileSync(join(workBundle, 'review.json'), 'utf-8')
     const staged = {

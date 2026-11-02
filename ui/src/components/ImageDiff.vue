@@ -2,13 +2,17 @@
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { assetUrl } from '../api.ts'
 import { computePixelDiff, loadImage } from '../image-pixel-diff.ts'
+import { imageSizing } from '../image-sizing.ts'
 
 const props = defineProps<{
   assetPath: string
   baseAssetPath?: string
   comparisonModes: Array<'side-by-side' | 'swipe' | 'onion-skin' | 'changed-pixel'>
   description: string
+  large?: boolean
 }>()
+
+const sizing = computed(() => imageSizing(props.large === true))
 
 type Mode = 'side-by-side' | 'swipe' | 'onion-skin' | 'changed-pixel'
 
@@ -60,6 +64,7 @@ const lightboxSrc = ref<string | null>(null)
 const lightboxDialog = useTemplateRef<HTMLDialogElement>('lightboxDialog')
 
 function openLightbox(src: string) {
+  if (props.large) return
   lightboxSrc.value = src
   lightboxDialog.value?.showModal()
 }
@@ -74,11 +79,12 @@ function closeLightbox() {
   <div class="border-t border-default p-4">
     <p class="mb-3 text-xs text-muted">{{ description }}</p>
 
-    <div v-if="!baseImageUrl" class="max-w-md">
+    <div v-if="!baseImageUrl" :class="sizing.single">
       <img
         :src="headUrl"
         :alt="assetPath"
-        class="cursor-zoom-in rounded border border-default"
+        class="rounded border border-default"
+        :class="[sizing.cursor, sizing.stageImage]"
         @click="openLightbox(headUrl)"
       />
     </div>
@@ -97,39 +103,43 @@ function closeLightbox() {
       </div>
 
       <div v-if="mode === 'side-by-side'" class="flex gap-3">
-        <div class="max-w-md flex-1">
+        <div :class="sizing.pane">
           <div class="mb-1 text-[10px] font-bold text-muted">Base</div>
           <img
             :src="baseImageUrl"
             :alt="`${assetPath} (base)`"
-            class="w-full cursor-zoom-in rounded border border-default"
+            class="rounded border border-default"
+            :class="[sizing.cursor, sizing.paneImage]"
             @click="openLightbox(baseImageUrl!)"
           />
         </div>
-        <div class="max-w-md flex-1">
+        <div :class="sizing.pane">
           <div class="mb-1 text-[10px] font-bold text-muted">Head</div>
           <img
             :src="headUrl"
             :alt="`${assetPath} (head)`"
-            class="w-full cursor-zoom-in rounded border border-default"
+            class="rounded border border-default"
+            :class="[sizing.cursor, sizing.paneImage]"
             @click="openLightbox(headUrl)"
           />
         </div>
       </div>
 
-      <div v-else-if="mode === 'swipe'" class="max-w-2xl">
+      <div v-else-if="mode === 'swipe'" :class="sizing.stage">
         <div class="relative inline-block overflow-hidden rounded border border-default">
           <img
             :src="baseImageUrl"
             :alt="`${assetPath} (base)`"
-            class="block max-w-full cursor-zoom-in"
+            class="block"
+            :class="[sizing.cursor, sizing.stageImage]"
             @click="openLightbox(baseImageUrl!)"
           />
           <div class="absolute inset-0 overflow-hidden" :style="{ clipPath: `inset(0 ${100 - sliderValue}% 0 0)` }">
             <img
               :src="headUrl"
               :alt="`${assetPath} (head)`"
-              class="block max-w-full cursor-zoom-in"
+              class="block"
+              :class="[sizing.cursor, sizing.stageImage]"
               @click="openLightbox(headUrl)"
             />
           </div>
@@ -139,18 +149,20 @@ function closeLightbox() {
         <p class="mt-1 text-[10px] text-muted">Left of the line: head. Right of the line: base.</p>
       </div>
 
-      <div v-else-if="mode === 'onion-skin'" class="max-w-2xl">
+      <div v-else-if="mode === 'onion-skin'" :class="sizing.stage">
         <div class="relative inline-block overflow-hidden rounded border border-default">
           <img
             :src="baseImageUrl"
             :alt="`${assetPath} (base)`"
-            class="block max-w-full cursor-zoom-in"
+            class="block"
+            :class="[sizing.cursor, sizing.stageImage]"
             @click="openLightbox(baseImageUrl!)"
           />
           <img
             :src="headUrl"
             :alt="`${assetPath} (head)`"
-            class="absolute inset-0 block max-w-full cursor-zoom-in"
+            class="absolute inset-0 block"
+            :class="[sizing.cursor, sizing.stageImage]"
             :style="{ opacity: sliderValue / 100 }"
             @click="openLightbox(headUrl)"
           />
@@ -159,7 +171,7 @@ function closeLightbox() {
         <p class="mt-1 text-[10px] text-muted">{{ sliderValue }}% head opacity over base.</p>
       </div>
 
-      <div v-else class="max-w-2xl">
+      <div v-else :class="sizing.stage">
         <p v-if="diffLoading" class="text-xs text-muted">Computing pixel diff…</p>
         <p v-else-if="diffError" class="text-xs text-warning">{{ diffError }}</p>
         <p v-else-if="diffStats" class="mb-2 text-xs text-muted">

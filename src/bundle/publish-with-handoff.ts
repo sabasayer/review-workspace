@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AskForRepoPath } from '../handoff/repo-path-cache.ts'
 import { exportHandoff, type ExportHandoffResult } from '../handoff/export-handoff.ts'
 import { readQuestions } from '../questions/questions-log.ts'
 import type { ReviewDocument } from '../schema/types.ts'
@@ -10,8 +9,7 @@ import { readChain } from './carry-forward.ts'
 
 export interface PublishWithHandoffOptions {
   limits?: BundleLimits
-  ask: AskForRepoPath
-  repoPathCachePath?: string
+  repoPath?: string
 }
 
 export interface PublishWithHandoffResult extends PublishResult {
@@ -38,8 +36,7 @@ export async function publishBundleAndExportHandoff(bundlePath: string, options:
     round,
     comments: readQuestions(bundlePath),
     annotations: document.annotations ?? [],
-    ask: options.ask,
-    repoPathCachePath: options.repoPathCachePath,
+    repoPath: options.repoPath,
   })
 
   return { ...result, handoff }

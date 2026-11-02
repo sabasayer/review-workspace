@@ -17,3 +17,13 @@ export function groupFilesByBehavioralGroup(files: RenderedFile[], groups: Rende
   if (rest.length) buckets.push({ group: null, filePaths: rest.map((f) => f.path), files: rest })
   return buckets
 }
+
+export interface FilePosition {
+  index: number
+  total: number
+}
+
+export function filePositions(buckets: GroupBucket[]): Map<string, FilePosition> {
+  const paths = buckets.flatMap((b) => b.filePaths)
+  return new Map(paths.map((path, i) => [path, { index: i + 1, total: paths.length }]))
+}

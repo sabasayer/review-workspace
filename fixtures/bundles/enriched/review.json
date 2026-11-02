@@ -1,11 +1,11 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "comparison": {
     "base": "abc1111",
     "head": "def2222",
     "repository": "example/widgets",
     "title": "Add login rate limiting",
-    "number": 42,
+    "number": "42",
     "url": "https://gitlab.example.com/example/widgets/-/merge_requests/42",
     "author": "Review Bot",
     "sourceBranch": "feat/rate-limit",
@@ -37,6 +37,10 @@
       },
       "summary": "Rejects further attempts once the sliding window limit is hit. Reads the limit from config.",
       "kind": "behavior",
+      "verdict": "wrong",
+      "severity": "medium",
+      "source": "nobody",
+      "suggestion": "Count only failed attempts, not every login.",
       "evidenceIds": ["ev-1"],
       "relatedTargets": [
         {
@@ -50,6 +54,15 @@
           "reason": "Limit constant defined here"
         }
       ]
+    },
+    {
+      "id": "an-2",
+      "target": { "type": "general" },
+      "summary": "The issue asks for a lock-out message. The change shows the user no message.",
+      "verdict": "missing",
+      "severity": "medium",
+      "source": "issue",
+      "suggestion": "Show a clear message when the limit is reached."
     }
   ],
   "evidence": [

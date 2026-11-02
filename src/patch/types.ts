@@ -17,6 +17,7 @@ export interface PatchFile {
   path: string
   oldPath?: string
   binary: boolean
+  added?: boolean
   hunks: PatchHunk[]
 }
 

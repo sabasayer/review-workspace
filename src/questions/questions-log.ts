@@ -47,6 +47,12 @@ export function raiseQuestion(bundlePath: string, body: string, target?: Target,
   }
 }
 
+/** Withdraws a Comment without a replacement. Recorded as a new log entry, like any other change. */
+export function withdrawQuestion(bundlePath: string, questionId: string): { withdrawn: string } {
+  appendEntry(bundlePath, { type: 'withdrawn', id: randomUUID(), createdAt: new Date().toISOString(), questionId })
+  return { withdrawn: questionId }
+}
+
 /**
  * Withdraws an existing question Comment and raises its replacement in one call —
  * a correction is recorded as new log entries, never as an edit to the original.
@@ -93,8 +99,9 @@ export type ResolveCommentResult =
   | { outcome: 'not-found' }
   | { outcome: 'not-resolvable'; comment: Comment }
 
-function isOpenChangeRequest(comment: Comment): boolean {
-  return comment.kind === 'change-request' && comment.status === 'open' && !comment.resolved
+/** The one definition of "open change-request" — every caller must use this, not re-derive it. */
+export function isOpenChangeRequest(comment: Comment): boolean {
+  return comment.kind === 'change-request' && comment.status === 'open'
 }
 
 /**
@@ -142,7 +149,7 @@ export function carryForwardComment(bundlePath: string, comment: Comment): void 
   })
 }
 
-/** Reduces the append-only log into the current set of Comments. */
+/** Reduces the append-only log into the current set of Comments. This is the only place a Comment's `status` is derived. */
 export function readQuestions(bundlePath: string): Comment[] {
   const comments = new Map<string, Comment>()
   for (const entry of readLog(bundlePath)) {
@@ -167,6 +174,7 @@ export function readQuestions(bundlePath: string): Comment[] {
       if (comment && comment.kind === 'change-request') {
         comment.resolved = true
         comment.resolvedAt = entry.createdAt
+        if (comment.status === 'open') comment.status = 'resolved'
       }
     }
   }

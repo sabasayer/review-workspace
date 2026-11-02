@@ -13,7 +13,7 @@ export interface Comment {
   body: string
   target?: Target
   kind: CommentKind
-  status: 'open' | 'withdrawn'
+  status: 'open' | 'withdrawn' | 'resolved'
   supersededBy?: string
   resolved: boolean
   resolvedAt?: string

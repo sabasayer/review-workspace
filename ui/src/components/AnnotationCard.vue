@@ -9,6 +9,9 @@ import { isNoteResolved, toggleNoteResolved } from '../composables/review-state-
 import AskQuestionForm from './AskQuestionForm.vue'
 import DiffLinesPreview from './DiffLinesPreview.vue'
 import { splitHeadline } from '../annotation-view.ts'
+import NoteSuggestion from './NoteSuggestion.vue'
+import NoteVerdict from './NoteVerdict.vue'
+import JumpToTargetButton from './JumpToTargetButton.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -60,18 +63,10 @@ function previewFor(i: number) {
 
 const resolved = computed(() => isNoteResolved(props.annotation.id))
 
-// Shown inline instead of forcing a "→ jump to diff" navigation, which — inside
-// FocusMode — meant leaving the walkthrough entirely just to see the code a note
-// is about. Only resolves for `hunk`/`line` targets; a plain `file` target still
-// has nothing more specific to preview.
-const diffOpen = ref(false)
+// Shown at the top of the note so the reader sees the code before the words about it.
+// Inside FocusMode, "→ jump to diff" would mean leaving the walkthrough. Only resolves
+// for `hunk`/`line` targets; a plain `file` target has nothing more specific to preview.
 const mainPreview = computed(() => resolveTargetPreview(currentFiles.value, props.annotation.target))
-watch(
-  () => props.annotation.id,
-  () => {
-    diffOpen.value = false
-  },
-)
 </script>
 
 <template>
@@ -79,15 +74,21 @@ watch(
     <div class="mb-1 flex flex-wrap items-start justify-between gap-2">
       <h3 class="text-sm font-semibold text-highlighted">{{ split.headline }}</h3>
       <span class="flex items-center gap-2">
+        <JumpToTargetButton :target="annotation.target" />
         <UBadge v-if="annotation.kind" size="sm" variant="subtle" color="primary">{{ annotation.kind }}</UBadge>
         <UCheckbox
           :model-value="resolved"
           label="Resolved"
           size="sm"
+          :ui="{ base: 'ring-control' }"
           @update:model-value="toggleNoteResolved(annotation.id)"
         />
       </span>
     </div>
+
+    <NoteVerdict class="mb-1" :annotation="annotation" />
+    <p class="mb-1 truncate font-mono text-[10px] text-dimmed">{{ annotation.target.path }}</p>
+    <DiffLinesPreview v-if="mainPreview" class="mb-2" :lines="mainPreview.lines" />
 
     <button
       v-if="split.body"
@@ -98,6 +99,8 @@ watch(
       {{ detailOpen ? '▾ hide detail' : '▸ detail' }}
     </button>
     <div v-if="detailOpen && split.body" class="markdown-body mb-3 text-sm text-muted" v-html="renderMarkdown(split.body)" />
+
+    <NoteSuggestion class="mb-3" :suggestion="annotation.suggestion" />
 
     <ul v-if="annotation.verification.length" class="mb-3 space-y-1 text-xs">
       <li v-for="v in annotation.verification" :key="v.id" class="flex items-start gap-1.5">
@@ -136,14 +139,10 @@ watch(
     </ul>
 
     <div class="flex items-center gap-3">
-      <button v-if="mainPreview" type="button" class="text-xs font-medium text-primary hover:underline" @click="diffOpen = !diffOpen">
-        {{ diffOpen ? '▾ close diff preview' : '▸ preview diff' }}
-      </button>
       <button type="button" class="text-xs font-medium text-primary hover:underline" @click="jump(annotation.target.path)">
         → jump to diff
       </button>
     </div>
-    <DiffLinesPreview v-if="diffOpen && mainPreview" class="mt-2" :lines="mainPreview.lines" />
 
     <div class="mt-3 border-t border-default pt-2">
       <AskQuestionForm :target="annotation.target" :annotation="annotation" />

@@ -37,6 +37,7 @@ review-bundle/
   changes.diff
   questions.jsonl
   state.json
+  live-head.json
   assets/
 ```
 
@@ -45,6 +46,8 @@ review-bundle/
 - `changes.diff` is the immutable authoritative Unified Patch.
 - `questions.jsonl` is the app-owned append-only Question inbox.
 - `state.json` is the app-owned single-Reviewer state.
+- `watcher.json` is optional. The watcher writes `{ enabled, cap, used, current }`. The engine only reads it.
+- `live-head.json` is optional. The Generator writes `{ head, checkedAt }` with the newest commit of the MR. The engine only reads it. See [ADR 0005](adr/0005-note-fields-general-target-proof-links-live-head.md).
 - `assets/` contains local evidence referenced by relative path.
 
 One bundle represents one exact base/head Comparison. New commits require a new bundle.
@@ -85,6 +88,7 @@ Annotations, Questions, Answers, and comments use typed Targets:
 - Hunk
 - Line with side and line number
 - Binary change
+- General (the whole Comparison, for an Annotation with no code line, or a Comment about the whole change)
 
 Line Targets carry expected text so the validator can detect stale or incorrect references. Unresolved Targets produce visible Diagnostics.
 
@@ -94,7 +98,40 @@ A Verification item has no Target of its own — only `targetIds` naming an Anno
 
 Questions are immutable append-only records. Corrections withdraw a Question and create a replacement. One Answer addresses exactly one Question; follow-ups are new Questions that may reference a prior Question.
 
+A Comment may use the general Target. It is never stale and has no Resolution status. Only the Reviewer resolves it. An open general change-request carries forward to the next round. The hand-off export lists it under "General". The skill never posts it inline. It posts a general MR comment only after the Reviewer says "send" and agrees to a general comment. See [ADR 0006](adr/0006-general-target-for-comments.md).
+
+### Question panel
+
+A docked side panel replaces the Question popover. It holds every Comment as one thread, newest first.
+
+- A Question shows its state in words and an icon: waiting (nobody picked it up), answering (the watcher works on it) or answered (an Answer exists). A change-request has no agent state.
+- The watcher writes `current` (the id of the Question it works on, or `null`) into `watcher.json`. The UI reads it through `GET /watcher`.
+- A click on a Question marker, or on "Ask a question", opens the panel on that thread. The panel stays open after the Reviewer sends a Question.
+- A composer at the bottom asks the next Question. Its Target chooser starts at the Target of the open thread.
+- The panel scrolls inside itself and fits any window.
+- A new Answer gives a toast. It also makes the badge on the panel button bigger: text of at least 14px, contrast of at least 4.5:1, and a count with the word "new" for screen readers. The badge clears when the Reviewer opens the thread.
+- When live answers are off, a waiting Question shows "Send to agent".
+
+### Suggestion buttons
+
+Every finding, and every note, has two buttons. "Raise as change-request" opens the change-request box with the suggestion text. "Ask a question" opens the panel composer for that Target. For a finding about the whole change, the Target is general.
+
 The app never launches a Generator. It provides a copyable prompt telling the Reviewer to invoke the `/review-workspace` skill with the absolute bundle path.
+
+### Preview and jump
+
+A file name in a note or finding becomes a link-like element. This holds for a markdown code span such as `repos.ts` or `utils/connector-management/repos.ts`.
+
+- A code span counts as a file name when it has a "/" or a file extension.
+- The name matches a changed file by full path. If that fails, it matches by unique path suffix. When several changed files match, the name stays plain text.
+- Hover or keyboard focus shows a Preview. A file in the diff shows its first 12 patch lines. A file outside the diff shows its first 40 lines, read from the repo.
+- A file that cannot be read shows no Preview. The same holds for every file when the server runs without `--repo`.
+- Ctrl+click (Cmd+click on macOS) jumps to the file in the diff and highlights it for a short time. A plain click does nothing new.
+- A file outside the diff has no jump. Its Preview says that it is not in the diff.
+- Escape closes the Preview. The Preview stays open while the pointer is over it.
+- The Preview is not the only way to the facts. Every changed file is also in the diff.
+- A note or finding with a line or hunk Target has a jump button in its header. It scrolls to the Target in the diff.
+- The engine serves `GET /repo-file?path=<relative>&lines=40` only when started with `--repo`. It needs no write token. The next section lists the safety rules.
 
 ## Validation behavior
 
@@ -127,6 +164,7 @@ Treat every bundle as untrusted:
 - Bind the server to loopback.
 - Require a per-session token for writes.
 - Never fetch external URLs automatically.
+- Serve repo files only through `GET /repo-file`, and only with `--repo`. Refuse absolute paths and `..`. Resolve the real path, and refuse any file outside the repo root, also through symlinks. Refuse directories, binary files and files over 256 KB. Answer 404 with a clear error for every refusal.
 - Emit no telemetry or implicit network requests.
 
 ## Performance and accessibility

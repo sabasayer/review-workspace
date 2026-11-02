@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { Diagnostic } from './diagnostics.ts'
 import { validateBundle, type BlockingReason } from './validate-bundle.ts'
 import { DEFAULT_LIMITS, type BundleLimits } from '../security/limits.ts'
 
@@ -7,6 +8,7 @@ export interface PublishResult {
   ok: boolean
   blockingReason?: BlockingReason | 'missing-next'
   message?: string
+  diagnostics?: Diagnostic[]
 }
 
 /**
@@ -29,5 +31,5 @@ export function publishBundle(bundlePath: string, limits: BundleLimits = DEFAULT
   const tmpPath = join(bundlePath, `.review.json.tmp-${process.pid}-${Date.now()}`)
   writeFileSync(tmpPath, readFileSync(nextPath, 'utf-8'))
   renameSync(tmpPath, reviewPath)
-  return { ok: true }
+  return { ok: true, diagnostics: result.diagnostics }
 }

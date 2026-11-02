@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "comparison": { "base": "abc1111", "head": "def2222", "title": "Add login rate limiting" },
+  "annotations": [
+    {
+      "id": "an-1",
+      "target": { "type": "general" },
+      "summary": "The issue asks for a lock-out message. The change has no user-facing message.",
+      "verdict": "missing",
+      "severity": "medium",
+      "source": "issue",
+      "suggestion": "Show a clear message when the limit is reached."
+    },
+    {
+      "id": "an-2",
+      "target": { "type": "line", "path": "src/auth/login.ts", "side": "head", "line": 42, "expectedText": "  if (attempts > MAX_ATTEMPTS) {" },
+      "summary": "The limit applies to every user, not only to failed attempts.",
+      "verdict": "wrong",
+      "severity": "high",
+      "source": "nobody",
+      "suggestion": "Count only failed attempts."
+    }
+  ]
+}

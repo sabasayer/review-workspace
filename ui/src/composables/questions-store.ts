@@ -58,6 +58,16 @@ export async function withdrawAndReplaceQuestion(id: string, body: string, targe
   await loadQuestions()
 }
 
+export async function withdrawQuestion(id: string): Promise<void> {
+  const res = await fetch(`/api/questions/${id}/withdraw`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-write-token': state.writeToken },
+    body: '{}',
+  })
+  if (!res.ok) throw new Error(`Could not delete Question: ${await parseErrorBody(res)}`)
+  await loadQuestions()
+}
+
 /** Human-only action: marks a change-request Comment resolved via the reviewer's own click. */
 export async function resolveComment(id: string): Promise<void> {
   const res = await fetch(`/api/questions/${id}/resolve`, {

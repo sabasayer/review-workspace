@@ -3,7 +3,9 @@ import { PatchParseError, type ParsedPatch, type PatchFile, type PatchHunk } fro
 const GIT_FILE_HEADER = /^diff --git a\/(.+) b\/(.+)$/
 const OLD_FILE_MARKER = /^--- (.+)$/
 const NEW_FILE_MARKER = /^\+\+\+ (.+)$/
+const NO_BASE_PATH = '/dev/null'
 const BINARY_MARKER = /^Binary files (?:a\/)?(.+) and (?:b\/)?(.+) differ$/
+const EXTENDED_HEADER = /^(?:index |new file mode |deleted file mode |old mode |new mode |similarity index |rename from |rename to )/
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/
 
 function stripPrefix(path: string): string {
@@ -60,8 +62,10 @@ export function parsePatch(text: string): ParsedPatch {
       // Binary marker's own paths: for a bare-format deletion the marker line reads
       // "Binary files a/X and /dev/null differ", so deriving identity from its second
       // capture group would wrongly produce "/dev/null" instead of the real path X.
+      const added = binaryMatch[1] === NO_BASE_PATH
       if (!pendingGitPaths && currentFile !== null && currentFile.hunks.length === 0 && !currentFile.binary) {
         currentFile.binary = true
+        if (added) currentFile.added = true
       } else {
         const path = pendingGitPaths?.new ?? stripPrefix(binaryMatch[2])
         currentFile = {
@@ -69,6 +73,7 @@ export function parsePatch(text: string): ParsedPatch {
           oldPath: pendingGitPaths?.old ?? stripPrefix(binaryMatch[1]),
           binary: true,
           hunks: [],
+          ...(added && { added }),
         }
         files.push(currentFile)
       }
@@ -76,7 +81,7 @@ export function parsePatch(text: string): ParsedPatch {
       continue
     }
 
-    if (line.startsWith('index ')) continue
+    if (EXTENDED_HEADER.test(line)) continue
 
     // A real file header only ever appears between hunks, never inside one — so once a
     // hunk is open and still expects more lines, a "--- "/"+++ "-prefixed line is content

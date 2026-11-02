@@ -30,7 +30,7 @@ To view an already-scaffolded bundle:
 npx review-workspace serve .bundles/<name> --port 4317
 ```
 
-Opens the UI at `http://127.0.0.1:4317` (prints a write token too — needed only to raise/answer Questions, not to view). One process, no separate dev server.
+Opens the UI at `http://127.0.0.1:4317` (prints a write token too — needed only to raise/answer Questions, not to view). The token is saved in the bundle as `.write-token` and stays the same after a restart. Use `serve --rotate-token` to make a new one. One process, no separate dev server.
 
 ## Addressing review feedback in the target repo
 

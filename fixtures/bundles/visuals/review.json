@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "comparison": { "base": "abc1111", "head": "def2222", "title": "Add login rate limiting" },
+  "intent": {
+    "does": "Adds a limit on login attempts.",
+    "why": "Stops brute-force attacks.",
+    "sources": ["MR text"],
+    "visuals": [
+      { "assetPath": "mr/screenshot.png", "caption": "Screenshot from the MR text.", "source": "mr-text" },
+      { "assetPath": "snapshot/head.png", "baseAssetPath": "snapshot/base.png", "caption": "Changed snapshot of the login page.", "source": "snapshot" }
+    ]
+  }
+}

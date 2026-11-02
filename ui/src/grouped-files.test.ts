@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildAnnotationNumbers } from './annotation-numbers.ts'
-import { groupFilesByBehavioralGroup } from './grouped-files.ts'
+import { filePositions, groupFilesByBehavioralGroup } from './grouped-files.ts'
 import type { RenderedFile, RenderedGroup } from './types.ts'
 
 function file(path: string): RenderedFile {
@@ -11,6 +11,8 @@ function file(path: string): RenderedFile {
     hunks: [],
     annotations: [{ id: 'a-file', target: { type: 'file', path }, summary: 'file note', evidence: [], verification: [] }],
     imageEvidence: [],
+    proofs: [],
+    proofFor: [],
     pipelineEvidence: [],
     diagnostics: [],
   }
@@ -39,6 +41,7 @@ describe('buildAnnotationNumbers', () => {
         oldLines: 1,
         newStart: 1,
         newLines: 1,
+        proofs: [],
         lines: [
           {
             id: 'l1',
@@ -55,5 +58,14 @@ describe('buildAnnotationNumbers', () => {
     const numbers = buildAnnotationNumbers(groupFilesByBehavioralGroup([login], []))
     expect(numbers.get('a-file')).toBe(1)
     expect(numbers.get('a-line')).toBe(2)
+  })
+})
+
+describe('filePositions', () => {
+  it('numbers files in the order the buckets show them', () => {
+    const groups: RenderedGroup[] = [{ id: 'g1', title: 'Auth', order: 0, filePaths: ['b.ts'] }]
+    const buckets = groupFilesByBehavioralGroup([file('a.ts'), file('b.ts')], groups)
+    expect(filePositions(buckets).get('b.ts')).toEqual({ index: 1, total: 2 })
+    expect(filePositions(buckets).get('a.ts')).toEqual({ index: 2, total: 2 })
   })
 })

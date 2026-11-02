@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -20,56 +21,40 @@ const openChangeRequest: Comment = {
 
 let workDir: string
 let repoDir: string
-let cachePath: string
 
 beforeEach(() => {
   workDir = mkdtempSync(join(tmpdir(), 'review-workspace-export-handoff-'))
   repoDir = join(workDir, 'target-repo')
   mkdirSync(repoDir)
-  cachePath = join(workDir, 'repo-paths.json')
+  execFileSync('git', ['init', '-q'], { cwd: repoDir })
 })
 
 afterEach(() => {
   rmSync(workDir, { recursive: true, force: true })
 })
 
+function baseOptions(overrides: Partial<Parameters<typeof exportHandoff>[0]> = {}) {
+  return {
+    bundlePath: '/bundles/example',
+    comparison,
+    round: 1,
+    comments: [openChangeRequest],
+    annotations: [],
+    ...overrides,
+  }
+}
+
 describe('exportHandoff', () => {
   it('is a no-op when there are no open change-request comments', async () => {
-    let askCalled = false
-    const result = await exportHandoff({
-      bundlePath: '/bundles/example',
-      comparison,
-      round: 1,
-      comments: [{ ...openChangeRequest, resolved: true }],
-      annotations: [],
-      ask: async () => {
-        askCalled = true
-        return repoDir
-      },
-      repoPathCachePath: cachePath,
-    })
+    const result = await exportHandoff(baseOptions({ comments: [{ ...openChangeRequest, status: 'resolved' as const, resolved: true }], repoPath: repoDir }))
 
     expect(result).toEqual({ written: false })
-    expect(askCalled).toBe(false)
     expect(existsSync(join(repoDir, '.review-feedback'))).toBe(false)
   })
 
-  it('writes the hand-off file into the target repo and ensures .gitignore, asking for the path the first time', async () => {
-    let askedFor: string | undefined
-    const result = await exportHandoff({
-      bundlePath: '/bundles/example',
-      comparison,
-      round: 3,
-      comments: [openChangeRequest],
-      annotations: [],
-      ask: async (repoSlug) => {
-        askedFor = repoSlug
-        return repoDir
-      },
-      repoPathCachePath: cachePath,
-    })
+  it('writes the hand-off file into the repo and excludes it through .git/info/exclude', async () => {
+    const result = await exportHandoff(baseOptions({ round: 3, repoPath: repoDir }))
 
-    expect(askedFor).toBe('example/widgets')
     expect(result.written).toBe(true)
     expect(result.repoPath).toBe(repoDir)
     expect(result.filePath).toBe(join(repoDir, '.review-feedback', '42-round3.md'))
@@ -78,66 +63,23 @@ describe('exportHandoff', () => {
     expect(written).toContain('Please handle the error path.')
     expect(written).toContain('round: 3')
 
-    expect(readFileSync(join(repoDir, '.gitignore'), 'utf-8')).toBe('.review-feedback/\n')
+    expect(readFileSync(join(repoDir, '.git', 'info', 'exclude'), 'utf-8')).toContain('.review-feedback/')
+    expect(existsSync(join(repoDir, '.gitignore'))).toBe(false)
   })
 
-  it('reuses the cached repo path on a second export without asking again', async () => {
-    await exportHandoff({
-      bundlePath: '/bundles/example',
-      comparison,
-      round: 1,
-      comments: [openChangeRequest],
-      annotations: [],
-      ask: async () => repoDir,
-      repoPathCachePath: cachePath,
-    })
+  it('skips the export with a reason when no repo path is given', async () => {
+    const result = await exportHandoff(baseOptions())
 
-    let askCalledAgain = false
-    await exportHandoff({
-      bundlePath: '/bundles/example',
-      comparison,
-      round: 2,
-      comments: [openChangeRequest],
-      annotations: [],
-      ask: async () => {
-        askCalledAgain = true
-        return repoDir
-      },
-      repoPathCachePath: cachePath,
-    })
-
-    expect(askCalledAgain).toBe(false)
-    expect(existsSync(join(repoDir, '.review-feedback', '42-round1.md'))).toBe(true)
-    expect(existsSync(join(repoDir, '.review-feedback', '42-round2.md'))).toBe(true)
+    expect(result).toEqual({ written: false, skipped: 'no-repo-path' })
   })
 
-  it('throws when the comparison has no repository to key the cache by', async () => {
-    await expect(
-      exportHandoff({
-        bundlePath: '/bundles/example',
-        comparison: { base: 'a', head: 'b' },
-        round: 1,
-        comments: [openChangeRequest],
-        annotations: [],
-        ask: async () => repoDir,
-        repoPathCachePath: cachePath,
-      }),
-    ).rejects.toThrow(/repository/)
-  })
+  it('skips the export without writing a file when the path is not a git repo', async () => {
+    const plainDir = join(workDir, 'plain')
+    mkdirSync(plainDir)
 
-  it('does not duplicate an existing broader .gitignore entry', async () => {
-    writeFileSync(join(repoDir, '.gitignore'), '.review-feedback/**\n')
+    const result = await exportHandoff(baseOptions({ repoPath: plainDir }))
 
-    await exportHandoff({
-      bundlePath: '/bundles/example',
-      comparison,
-      round: 1,
-      comments: [openChangeRequest],
-      annotations: [],
-      ask: async () => repoDir,
-      repoPathCachePath: cachePath,
-    })
-
-    expect(readFileSync(join(repoDir, '.gitignore'), 'utf-8')).toBe('.review-feedback/**\n')
+    expect(result).toEqual({ written: false, skipped: 'not-a-git-repo' })
+    expect(existsSync(join(plainDir, '.review-feedback'))).toBe(false)
   })
 })

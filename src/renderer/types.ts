@@ -1,4 +1,4 @@
-import type { Annotation, Answer, Comparison } from '../schema/types.ts'
+import type { Annotation, Answer, CodeTarget, Comparison, GeneralTarget, Intent } from '../schema/types.ts'
 import type { Diagnostic } from '../bundle/diagnostics.ts'
 
 /** An Evidence item resolved from one of an Annotation's own `evidenceIds`. */
@@ -21,6 +21,14 @@ export interface RenderedAnnotation extends Annotation {
   verification: RenderedAnnotationVerification[]
 }
 
+export interface RenderedCodeAnnotation extends RenderedAnnotation {
+  target: CodeTarget
+}
+
+export interface RenderedGeneralAnnotation extends RenderedAnnotation {
+  target: GeneralTarget
+}
+
 export interface RenderedLine {
   id: string
   kind: 'context' | 'add' | 'remove'
@@ -28,8 +36,27 @@ export interface RenderedLine {
   oldLine?: number
   newLine?: number
   overflowsInline: boolean
-  annotations: RenderedAnnotation[]
+  annotations: RenderedCodeAnnotation[]
   diagnostics: Diagnostic[]
+}
+
+/** A Proof link seen from the code side: the image that shows this change works. */
+export interface RenderedProof {
+  evidenceId: string
+  caption: string
+  /** Path of the changed image file in the patch — the image Target. */
+  imagePath: string
+  /** The head image to show, relative to `assets/`. */
+  assetPath: string
+  baseAssetPath?: string
+}
+
+/** A Proof link seen from the image side: the code it proves. */
+export interface RenderedProofBackLink {
+  evidenceId: string
+  path: string
+  hunkIndex?: number
+  annotationId?: string
 }
 
 export interface RenderedHunk {
@@ -38,6 +65,8 @@ export interface RenderedHunk {
   newStart: number
   newLines: number
   lines: RenderedLine[]
+  /** Proofs linked to this hunk, directly or through an Annotation on it or on one of its lines. */
+  proofs: RenderedProof[]
 }
 
 export interface RenderedImageEvidence {
@@ -64,9 +93,13 @@ export interface RenderedFile {
   oldPath?: string
   binary: boolean
   hunks: RenderedHunk[]
-  annotations: RenderedAnnotation[]
+  annotations: RenderedCodeAnnotation[]
   imageEvidence: RenderedImageEvidence[]
   pipelineEvidence: RenderedPipelineEvidence[]
+  /** Proofs linked to the file as a whole, with no specific hunk. Hunk-level proofs are on the hunk. */
+  proofs: RenderedProof[]
+  /** For a changed image: the code it is a proof for. */
+  proofFor: RenderedProofBackLink[]
   /**
    * Every Verification item targeting this file, directly (`targetIds` names the
    * file's path) or via one of its Annotations (`targetIds` names the Annotation's
@@ -94,7 +127,7 @@ export interface SideBySideRow {
 
 export interface RenderedSummary {
   text: string
-  highlightAnnotations: RenderedAnnotation[]
+  highlightAnnotations: RenderedCodeAnnotation[]
   highlightPaths: string[]
 }
 
@@ -108,4 +141,9 @@ export interface ViewModel {
   generatorPrompt: string
   answers: Answer[]
   summary?: RenderedSummary
+  intent?: Intent
+  /** Annotations with a general Target (the whole Comparison). They belong to no file. */
+  generalAnnotations: RenderedGeneralAnnotation[]
+  /** Verification gaps (each counted once) plus general Annotations that are not `intended`. */
+  openGaps: number
 }

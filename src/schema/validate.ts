@@ -21,4 +21,4 @@ export function validateReviewDocumentSchema(input: unknown): SchemaValidationRe
   return { valid: true, document: input as unknown as ReviewDocument }
 }
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2

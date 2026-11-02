@@ -36,14 +36,14 @@ test.describe('enriched bundle', () => {
 
   test('shows side-by-side diff layout', async ({ page }) => {
     await bannerButtons(page).nth(4).click()
-    await expect(page.getByText('if (attempts > MAX_ATTEMPTS)')).toBeVisible()
+    await expect(page.locator('article[id]').getByText('if (attempts > MAX_ATTEMPTS)')).toBeVisible()
     await expect(page).toHaveScreenshot('diff-review-side-by-side.png', { fullPage: true })
     await page.screenshot({ path: join(docScreenshots, 'diff-review-side-by-side.png'), fullPage: true })
   })
 
   test('opens questions panel', async ({ page }) => {
-    await bannerButtons(page).nth(2).click()
-    const dialog = page.getByRole('dialog', { name: 'Questions' })
+    await page.getByRole('button', { name: 'Question panel' }).click()
+    const dialog = page.getByTestId('question-panel')
     await expect(dialog.getByText('What is the rate limit window?')).toBeVisible()
     await expect(dialog.getByText('The window is 60 seconds')).toBeVisible()
     await expect(dialog).toHaveScreenshot('questions-panel.png')
@@ -69,8 +69,8 @@ test.describe('enriched bundle', () => {
   })
 
   test('opens annotation note popover', async ({ page }) => {
-    await page.getByRole('button', { name: /Note 1:/ }).click()
-    const popover = page.locator('div.w-80').filter({ hasText: 'Rejects further attempts' })
+    await page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' }).getByRole('button').first().click()
+    const popover = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
     await expect(popover).toBeVisible()
     await expect(popover.getByRole('button', { name: '→ src/config/rate-limit.ts' })).toBeVisible()
     await expect(popover).toHaveScreenshot('annotation-note-popover.png')
@@ -83,10 +83,10 @@ test.describe('enriched bundle', () => {
     // scroll tick — racing Playwright's own auto-scroll-into-view for the screenshot
     // and never settling. A taller viewport gives the popover room without flipping.
     await page.setViewportSize({ width: 1280, height: 1400 })
-    const trigger = page.getByRole('button', { name: /Note 1:/ })
+    const trigger = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' }).getByRole('button').first()
     await trigger.scrollIntoViewIfNeeded()
     await trigger.click()
-    const popover = page.locator('div.w-80').filter({ hasText: 'Rejects further attempts' })
+    const popover = page.getByTestId('inline-note').filter({ hasText: 'Rejects further attempts' })
     await popover.getByRole('button', { name: '→ src/config/rate-limit.ts' }).hover()
     await expect(popover.getByText('export const MAX_ATTEMPTS = 5')).toBeVisible()
     // A fraction-of-a-pixel scroll offset shifts subpixel text rendering here — tolerate

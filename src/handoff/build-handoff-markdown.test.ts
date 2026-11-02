@@ -82,7 +82,7 @@ describe('buildHandoffMarkdown', () => {
         body: 'Already resolved — must not appear.',
         target: { type: 'file', path: 'src/auth/login.ts' },
         kind: 'change-request',
-        status: 'open',
+        status: 'resolved',
         resolved: true,
         resolvedAt: '2026-08-01T13:00:00.000Z',
       },
@@ -340,5 +340,39 @@ describe('buildHandoffMarkdown', () => {
         '',
       ].join('\n'),
     )
+  })
+
+  it('lists a general-Target change-request under a General heading, after the files', () => {
+    const comments: Comment[] = [
+      {
+        id: 'cr-general',
+        createdAt: '2026-08-01T09:00:00.000Z',
+        body: 'Add a changelog entry.',
+        target: { type: 'general' },
+        kind: 'change-request',
+        status: 'open',
+        resolved: false,
+      },
+      {
+        id: 'cr-file',
+        createdAt: '2026-08-01T09:01:00.000Z',
+        body: 'File comment.',
+        target: { type: 'file', path: 'src/a.ts' },
+        kind: 'change-request',
+        status: 'open',
+        resolved: false,
+      },
+    ]
+    const markdown = buildHandoffMarkdown({ bundlePath: 'b', comparison, round: 1, comments, annotations: [] })
+    expect(markdown).toContain(['## General', '', '### General', '', 'Add a changelog entry.', '', '---'].join('\n'))
+    expect(markdown.indexOf('## src/a.ts')).toBeLessThan(markdown.indexOf('## General'))
+  })
+
+  it('does not attach an Annotation to a general-Target change-request', () => {
+    const comments: Comment[] = [
+      { id: 'cr-general', createdAt: '2026-08-01T09:00:00.000Z', body: 'x', target: { type: 'general' }, kind: 'change-request', status: 'open', resolved: false },
+    ]
+    const annotations: Annotation[] = [{ id: 'g', target: { type: 'general' }, summary: 'Whole-change finding.' }]
+    expect(buildHandoffMarkdown({ bundlePath: 'b', comparison, round: 1, comments, annotations })).not.toContain('Whole-change finding.')
   })
 })
