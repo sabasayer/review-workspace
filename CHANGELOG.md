@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/sabasayer/review-workspace/compare/v1.12.0...v1.13.0) (2026-11-03)
+
+
+### Features
+
+* **bundle:** back up the bundle and warn when its folder is gone ([6eeed90](https://github.com/sabasayer/review-workspace/commit/6eeed90abacfab89743e487e2c774489f3633cd3))
+
 # [1.12.0](https://github.com/sabasayer/review-workspace/compare/v1.11.0...v1.12.0) (2026-11-02)
 
 
