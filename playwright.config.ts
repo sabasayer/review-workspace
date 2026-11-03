@@ -1,9 +1,13 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const enrichedPort = 4318
+
+process.env.REVIEW_WORKSPACE_BACKUP_ROOT ??= mkdtempSync(join(tmpdir(), 'review-workspace-e2e-backups-'))
 
 export default defineConfig({
   testDir: join(root, 'e2e'),

@@ -10,6 +10,7 @@ import { readChain } from './carry-forward.ts'
 export interface PublishWithHandoffOptions {
   limits?: BundleLimits
   repoPath?: string
+  backupRoot?: string
 }
 
 export interface PublishWithHandoffResult extends PublishResult {
@@ -24,7 +25,7 @@ export interface PublishWithHandoffResult extends PublishResult {
  * hand-off export itself.
  */
 export async function publishBundleAndExportHandoff(bundlePath: string, options: PublishWithHandoffOptions): Promise<PublishWithHandoffResult> {
-  const result = publishBundle(bundlePath, options.limits ?? DEFAULT_LIMITS)
+  const result = publishBundle(bundlePath, options.limits ?? DEFAULT_LIMITS, options.backupRoot)
   if (!result.ok) return result
 
   const document = JSON.parse(readFileSync(join(bundlePath, 'review.json'), 'utf-8')) as ReviewDocument

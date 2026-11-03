@@ -136,7 +136,7 @@ async function showInCode(entry: (typeof questionEntries.value)[number]) {
 
     <div class="flex min-h-0 flex-1">
       <div class="flex min-w-0 flex-1 flex-col">
-        <div v-if="error" class="p-4 text-error">Failed to load bundle: {{ error }}</div>
+        <div v-if="error" data-testid="load-error" class="p-4 text-error">Failed to load bundle: {{ error }}</div>
         <div v-else-if="!viewModel" class="p-4 text-muted">Loading…</div>
 
         <FocusMode
