@@ -8,7 +8,8 @@ export async function fetchView(): Promise<ViewModel> {
   const res = await fetch('/api/view')
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(`GET /view failed (${res.status}): ${body.error ?? res.statusText}`)
+    const backup = body.backupPath ? `. Backup: ${body.backupPath}` : ''
+    throw new Error(`GET /view failed (${res.status}): ${body.error ?? res.statusText}${backup}`)
   }
   return res.json()
 }

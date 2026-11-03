@@ -179,6 +179,7 @@ Report:
 - Evidence or media gaps
 - Any Questions answered — and, separately, how many open change-requests exist (never claim one was addressed; that's not yours to say)
 - If a hand-off file was exported: its path in the target repo, which `--repo` path was used (or that the export was skipped for lack of one), and the round number
+- Backup: `publish` and `serve` copy the bundle to `~/.claude/review-workspace-backups/`. If the UI says `bundle folder is gone` (a `503`), tell the user to copy the backup folder back.
 - If the Watcher ran: the cap and how many Answers it used. If you posted to the MR: how many comments and where
 - Any framework decision added or changed
 - If served: the URL, the write token, and what the token is for (raising/answering Questions, or raising a change-request) — always share it, never withhold it as an implementation detail

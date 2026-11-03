@@ -49,6 +49,12 @@ review-bundle/
 - `watcher.json` is optional. The watcher writes `{ enabled, cap, used, current, updatedAt }`. `updatedAt` is an ISO date-time. It is the heartbeat (a time stamp the watcher renews on each tick). The watcher writes it every 3 s. The UI marks the watcher as stopped when `updatedAt` is over 30 s old. While `current` holds a Question id, the limit is 5 min, because one answer can take minutes. A file with no `updatedAt` never counts as stopped. The engine only reads it.
 - `live-head.json` is optional. The Generator writes `{ head, checkedAt }` with the newest commit of the MR. The engine only reads it. See [ADR 0005](adr/0005-note-fields-general-target-proof-links-live-head.md).
 - `assets/` contains local evidence referenced by relative path.
+- Backup: `publish` and `serve` make a copy of the bundle. Each rule below is separate.
+  - Place: the copy goes to `~/.claude/review-workspace-backups/<bundle-name>-<hash>/`. Set `REVIEW_WORKSPACE_BACKUP_ROOT` to use another folder.
+  - Time: `publish` and `serve` make a copy at start. The server makes a new copy after each write request that succeeds.
+  - Kept: only the latest copy is kept.
+  - Left out: `.write-token` and `watcher.json` are not copied. No copy is made when `review.json` is missing.
+  - Gone: if the bundle folder is gone, every API route answers `503` with the backup path.
 
 One bundle represents one exact base/head Comparison. New commits require a new bundle.
 

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Diagnostic } from './diagnostics.ts'
 import { validateBundle, type BlockingReason } from './validate-bundle.ts'
+import { backupOrWarn } from './backup.ts'
 import { DEFAULT_LIMITS, type BundleLimits } from '../security/limits.ts'
 
 export interface PublishResult {
@@ -16,7 +17,7 @@ export interface PublishResult {
  * replaces `review.json` with it. On any failure `review.json` is left
  * byte-for-byte untouched.
  */
-export function publishBundle(bundlePath: string, limits: BundleLimits = DEFAULT_LIMITS): PublishResult {
+export function publishBundle(bundlePath: string, limits: BundleLimits = DEFAULT_LIMITS, backupRoot?: string): PublishResult {
   const nextPath = join(bundlePath, 'review.next.json')
   if (!existsSync(nextPath)) {
     return { ok: false, blockingReason: 'missing-next', message: 'review.next.json not found' }
@@ -31,5 +32,6 @@ export function publishBundle(bundlePath: string, limits: BundleLimits = DEFAULT
   const tmpPath = join(bundlePath, `.review.json.tmp-${process.pid}-${Date.now()}`)
   writeFileSync(tmpPath, readFileSync(nextPath, 'utf-8'))
   renameSync(tmpPath, reviewPath)
+  backupOrWarn(bundlePath, backupRoot)
   return { ok: true, diagnostics: result.diagnostics }
 }

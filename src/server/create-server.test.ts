@@ -3,24 +3,40 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symli
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { backupPathFor } from '../bundle/backup.ts'
 import { startReviewServer, type ReviewServerHandle } from './create-server.ts'
 
 const validBundle = fileURLToPath(new URL('../../fixtures/bundles/valid/', import.meta.url))
 
 let workBundle: string
 let handle: ReviewServerHandle
+let backupRoot: string
 
 beforeEach(async () => {
+  backupRoot = mkdtempSync(join(tmpdir(), 'review-workspace-server-backups-'))
   workBundle = mkdtempSync(join(tmpdir(), 'review-workspace-server-'))
   cpSync(validBundle, workBundle, { recursive: true })
-  handle = await startReviewServer(workBundle)
+  handle = await startReviewServer(workBundle, { backupRoot })
 })
 
 afterEach(async () => {
   await handle.close()
   rmSync(workBundle, { recursive: true, force: true })
+  rmSync(backupRoot, { recursive: true, force: true })
+  vi.restoreAllMocks()
 })
+
+function unwritableBackupRoot(): string {
+  const blocker = join(backupRoot, 'blocker')
+  writeFileSync(blocker, 'a file, not a folder')
+  return join(blocker, 'backups')
+}
+
+function spyOnStderr() {
+  const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  return () => spy.mock.calls.map(([chunk]) => String(chunk))
+}
 
 function baseUrl() {
   return `http://127.0.0.1:${handle.port}`
@@ -69,17 +85,17 @@ describe('startReviewServer', () => {
   it('keeps the same write token across a restart', async () => {
     const first = handle.writeToken
     await handle.close()
-    handle = await startReviewServer(workBundle)
+    handle = await startReviewServer(workBundle, { backupRoot })
     expect(handle.writeToken).toBe(first)
   })
 
   it('mints a new write token on restart when rotation is requested', async () => {
     const first = handle.writeToken
     await handle.close()
-    handle = await startReviewServer(workBundle, { rotateToken: true })
+    handle = await startReviewServer(workBundle, { rotateToken: true, backupRoot })
     expect(handle.writeToken).not.toBe(first)
     await handle.close()
-    handle = await startReviewServer(workBundle)
+    handle = await startReviewServer(workBundle, { backupRoot })
     expect(handle.writeToken).not.toBe(first)
   })
 
@@ -344,7 +360,7 @@ describe('startReviewServer', () => {
     expect(listed.find((c: { id: string }) => c.id === created.id)).toMatchObject({ status: 'resolved', resolved: true })
 
     await handle.close()
-    handle = await startReviewServer(workBundle)
+    handle = await startReviewServer(workBundle, { backupRoot })
     const relisted = await (await fetch(`${baseUrl()}/questions`)).json()
     expect(relisted.find((c: { id: string }) => c.id === created.id).status).toBe('resolved')
   })
@@ -467,7 +483,7 @@ describe('GET /assets/*', () => {
   let imageHandle: ReviewServerHandle
 
   beforeEach(async () => {
-    imageHandle = await startReviewServer(imagePairBundle, { writeToken: 'test-token' })
+    imageHandle = await startReviewServer(imagePairBundle, { writeToken: 'test-token', backupRoot })
   })
 
   afterEach(async () => {
@@ -513,7 +529,7 @@ describe('POST /publish hand-off export', () => {
   })
 
   it('writes the hand-off file and excludes it locally in the target repo when publishing with an open change-request', async () => {
-    handoffHandle = await startReviewServer(workBundle, { repoPath: repoDir })
+    handoffHandle = await startReviewServer(workBundle, { repoPath: repoDir, backupRoot })
 
     await fetch(`http://127.0.0.1:${handoffHandle.port}/questions`, {
       method: 'POST',
@@ -545,7 +561,7 @@ describe('POST /publish hand-off export', () => {
   })
 
   it('does not write a hand-off file when there are no open change-requests', async () => {
-    handoffHandle = await startReviewServer(workBundle, { repoPath: repoDir })
+    handoffHandle = await startReviewServer(workBundle, { repoPath: repoDir, backupRoot })
 
     writeFileSync(
       join(workBundle, 'review.next.json'),
@@ -576,7 +592,7 @@ describe('round-N carry-forward', () => {
     cpSync(round1Fixture, join(roundParent, 'chained-mr-100'), { recursive: true })
     round2 = join(roundParent, 'chained-mr-100-r2')
     cpSync(round2Fixture, round2, { recursive: true })
-    roundHandle = await startReviewServer(round2)
+    roundHandle = await startReviewServer(round2, { backupRoot })
   })
 
   afterEach(async () => {
@@ -702,7 +718,7 @@ describe('GET /repo-file', () => {
     writeFileSync(join(repoDir, 'utils', 'repos.ts'), Array.from({ length: 60 }, (_, i) => `const n${i} = ${i}`).join('\n'))
     writeFileSync(join(outsideDir, 'secret.txt'), 'secret')
     symlinkSync(join(outsideDir, 'secret.txt'), join(repoDir, 'link.txt'))
-    repoHandle = await startReviewServer(workBundle, { repoPath: repoDir })
+    repoHandle = await startReviewServer(workBundle, { repoPath: repoDir, backupRoot })
   })
 
   afterEach(async () => {
@@ -773,5 +789,141 @@ describe('GET /repo-file', () => {
   it('does not accept writes', async () => {
     const res = await fetch(repoFileUrl('utils/repos.ts'), { method: 'POST', headers: { 'x-write-token': repoHandle.writeToken } })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('bundle backup and vanished folder', () => {
+  const writeHeaders = () => ({ 'x-write-token': handle.writeToken, 'content-type': 'application/json' })
+
+  it('makes a backup when the server starts', () => {
+    const copy = backupPathFor(workBundle, backupRoot)
+    expect(existsSync(join(copy, 'review.json'))).toBe(true)
+    expect(existsSync(join(copy, '.write-token'))).toBe(false)
+  })
+
+  it('updates the backup after a write request', async () => {
+    const res = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: writeHeaders(),
+      body: JSON.stringify({ body: 'why is this backed up?' }),
+    })
+    expect(res.status).toBe(201)
+
+    const copy = backupPathFor(workBundle, backupRoot)
+    expect(readFileSync(join(copy, 'questions.jsonl'), 'utf-8')).toContain('why is this backed up?')
+  })
+
+  it('does not fail a write request when the backup cannot be written', async () => {
+    await handle.close()
+    const stderrLines = spyOnStderr()
+    handle = await startReviewServer(workBundle, { backupRoot: unwritableBackupRoot() })
+
+    const res = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: writeHeaders(),
+      body: JSON.stringify({ body: 'still works' }),
+    })
+
+    expect(res.status).toBe(201)
+    expect(stderrLines().some((line) => line.includes('Backup failed for'))).toBe(true)
+  })
+
+  it('updates the backup after POST /publish with a staged review.next.json', async () => {
+    const stagedDoc = {
+      schemaVersion: 1,
+      comparison: { base: 'abc1111', head: 'def2222' },
+      annotations: [{ id: 'an-1', target: { type: 'file', path: 'src/auth/login.ts' }, summary: 'Published.' }],
+    }
+    writeFileSync(join(workBundle, 'review.next.json'), JSON.stringify(stagedDoc))
+
+    const res = await fetch(`${baseUrl()}/publish`, { method: 'POST', headers: { 'x-write-token': handle.writeToken } })
+
+    expect(res.status).toBe(200)
+    const copy = backupPathFor(workBundle, backupRoot)
+    expect(JSON.parse(readFileSync(join(copy, 'review.json'), 'utf-8')).annotations).toHaveLength(1)
+  })
+
+  it('keeps the backup unchanged after a rejected write', async () => {
+    const copy = backupPathFor(workBundle, backupRoot)
+    const before = readFileSync(join(copy, 'review.json'), 'utf-8')
+
+    const badBody = await fetch(`${baseUrl()}/questions`, { method: 'POST', headers: writeHeaders(), body: JSON.stringify({ body: '' }) })
+    const noToken = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'no token' }),
+    })
+
+    expect(badBody.status).toBe(400)
+    expect(noToken.status).toBe(401)
+    expect(readFileSync(join(copy, 'review.json'), 'utf-8')).toBe(before)
+    expect(existsSync(join(copy, 'questions.jsonl'))).toBe(false)
+  })
+
+  it('answers 503 with the backup path on API routes after the folder is deleted', async () => {
+    rmSync(workBundle, { recursive: true, force: true })
+    const expectedPath = backupPathFor(workBundle, backupRoot)
+
+    const body = await pollUntil(async () => {
+      const res = await fetch(`${baseUrl()}/document`)
+      return res.status === 503 ? await res.json() : undefined
+    })
+    expect(body).toEqual({ error: 'bundle folder is gone', backupPath: expectedPath })
+
+    for (const path of ['/view', '/questions', '/watcher']) {
+      const res = await fetch(`${baseUrl()}${path}`)
+      expect(res.status).toBe(503)
+    }
+    const write = await fetch(`${baseUrl()}/questions`, {
+      method: 'POST',
+      headers: writeHeaders(),
+      body: JSON.stringify({ body: 'lost' }),
+    })
+    expect(write.status).toBe(503)
+  })
+
+  it('writes one stderr line and keeps the last backup when the folder is gone', async () => {
+    const stderrLines = spyOnStderr()
+    rmSync(workBundle, { recursive: true, force: true })
+    await pollUntil(async () => ((await fetch(`${baseUrl()}/document`)).status === 503 ? true : undefined))
+
+    for (const path of ['/view', '/questions', '/state']) await fetch(`${baseUrl()}${path}`)
+
+    expect(stderrLines().filter((line) => line.includes('Bundle folder is gone'))).toHaveLength(1)
+    expect(existsSync(join(backupPathFor(workBundle, backupRoot), 'review.json'))).toBe(true)
+  })
+
+  it('still serves the static UI when the folder is gone', async () => {
+    rmSync(workBundle, { recursive: true, force: true })
+    await pollUntil(async () => ((await fetch(`${baseUrl()}/document`)).status === 503 ? true : undefined))
+
+    const res = await fetch(`${baseUrl()}/`)
+    expect(res.status).not.toBe(503)
+  })
+
+  it('serves again after the folder comes back', async () => {
+    const copy = backupPathFor(workBundle, backupRoot)
+    rmSync(workBundle, { recursive: true, force: true })
+    await pollUntil(async () => ((await fetch(`${baseUrl()}/document`)).status === 503 ? true : undefined))
+
+    cpSync(copy, workBundle, { recursive: true })
+
+    const body = await pollUntil(async () => {
+      const res = await fetch(`${baseUrl()}/document`)
+      return res.status === 200 ? await res.json() : undefined
+    }, 3000)
+    expect(body.valid).toBe(true)
+  })
+
+  it('serves again on the next request when the folder returns with no change event', async () => {
+    const copy = backupPathFor(workBundle, backupRoot)
+    rmSync(workBundle, { recursive: true, force: true })
+    await pollUntil(async () => ((await fetch(`${baseUrl()}/document`)).status === 503 ? true : undefined))
+
+    cpSync(copy, workBundle, { recursive: true })
+    const res = await fetch(`${baseUrl()}/document`)
+
+    expect(res.status).toBe(200)
+    expect((await res.json()).valid).toBe(true)
   })
 })

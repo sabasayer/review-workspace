@@ -17,6 +17,7 @@ import type { ReviewDocument } from '../schema/types.ts'
 import { buildReport } from '../export/report.ts'
 import { resolveAssetPath } from '../security/asset-path.ts'
 import { readRepoFileTop } from '../security/repo-file.ts'
+import { backupOrWarn, backupPathFor } from '../bundle/backup.ts'
 import { loadWriteToken } from './write-token.ts'
 
 export interface ReviewServerHandle {
@@ -31,8 +32,10 @@ export interface ReviewServerOptions {
   writeToken?: string
   rotateToken?: boolean
   repoPath?: string
+  backupRoot?: string
 }
 
+const FILE_EXTENSION = /\.[a-zA-Z0-9]+$/
 const WRITE_TOKEN_HEADER = 'x-write-token'
 const WITHDRAW_PATH = /^\/questions\/([^/]+)\/withdraw$/
 const RESOLVE_PATH = /^\/questions\/([^/]+)\/resolve$/
@@ -59,12 +62,17 @@ const UI_CONTENT_TYPES: Record<string, string> = {
   ...ASSET_CONTENT_TYPES,
 }
 
+function isStaticUiRequest(method: string | undefined, pathname: string): boolean {
+  if (method !== 'GET' || pathname.startsWith('/assets/')) return false
+  return pathname === '/' || FILE_EXTENSION.test(pathname)
+}
+
 function serveUiStatic(pathname: string, res: ServerResponse): boolean {
   if (!existsSync(UI_DIST_DIR)) return false
 
   // SPA fallback: any path without a recognized static-file extension is a client-side
   // route (e.g. a deep link) — serve index.html and let the app's own router take over.
-  const hasExtension = /\.[a-zA-Z0-9]+$/.test(pathname)
+  const hasExtension = FILE_EXTENSION.test(pathname)
   const candidate = join(UI_DIST_DIR, hasExtension ? pathname : 'index.html')
   const resolved = hasExtension && existsSync(candidate) && statSync(candidate).isFile() ? candidate : join(UI_DIST_DIR, 'index.html')
 
@@ -105,10 +113,32 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
   // this is what makes file watching load-bearing rather than a no-op wrapper
   // around a stateless re-read-per-request design.
   let latest: ValidateBundleResult = validateBundle(bundlePath)
-  const watcher = watchBundle(bundlePath)
-  watcher.emitter.on('change', () => {
+  backupOrWarn(bundlePath, opts.backupRoot)
+
+  const backupCopyPath = backupPathFor(bundlePath, opts.backupRoot)
+  const lastBackup = () => (existsSync(backupCopyPath) ? backupCopyPath : null)
+  const reload = () => {
     carryForwardChain(bundlePath)
     latest = validateBundle(bundlePath)
+  }
+
+  let folderGone = false
+  const folderIsPresent = (): boolean => {
+    if (existsSync(bundlePath)) {
+      folderGone = false
+      return true
+    }
+    if (!folderGone) {
+      folderGone = true
+      const last = lastBackup()
+      process.stderr.write(`Bundle folder is gone: ${bundlePath}. ${last ? `Last backup: ${last}` : 'No backup found.'}\n`)
+    }
+    return false
+  }
+
+  const watcher = watchBundle(bundlePath)
+  watcher.emitter.on('change', () => {
+    if (folderIsPresent()) reload()
   })
 
   const server = createServer((req, res) => {
@@ -120,6 +150,22 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
     const respond = (status: number, body: unknown) => {
       res.writeHead(status, { 'content-type': 'application/json' })
       res.end(JSON.stringify(body))
+    }
+
+    const isApiRequest = req.url?.startsWith('/api/') || !isStaticUiRequest(req.method, url.pathname)
+    if (isApiRequest) {
+      const wasGone = folderGone
+      if (!folderIsPresent()) {
+        respond(503, { error: 'bundle folder is gone', backupPath: lastBackup() })
+        return
+      }
+      if (wasGone) reload()
+    }
+
+    if (req.method !== 'GET' && url.pathname !== '/publish') {
+      res.on('finish', () => {
+        if (res.statusCode < 300) backupOrWarn(bundlePath, opts.backupRoot)
+      })
     }
 
     if (req.method === 'GET' && url.pathname === '/document') {
@@ -206,7 +252,7 @@ export function startReviewServer(bundlePath: string, opts: ReviewServerOptions 
     }
 
     if (req.method === 'POST' && url.pathname === '/publish') {
-      publishBundleAndExportHandoff(bundlePath, { repoPath: opts.repoPath })
+      publishBundleAndExportHandoff(bundlePath, { repoPath: opts.repoPath, backupRoot: opts.backupRoot })
         .then((result) => respond(result.ok ? 200 : 422, result))
         .catch((err) => respond(500, { error: err instanceof Error ? err.message : 'publish failed' }))
       return

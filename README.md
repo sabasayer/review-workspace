@@ -32,6 +32,8 @@ npx review-workspace serve .bundles/<name> --port 4317
 
 Opens the UI at `http://127.0.0.1:4317` (prints a write token too — needed only to raise/answer Questions, not to view). The token is saved in the bundle as `.write-token` and stays the same after a restart. Use `serve --rotate-token` to make a new one. One process, no separate dev server.
 
+`serve` and `publish` also make a copy of the bundle in `~/.claude/review-workspace-backups/<bundle-name>-<hash>/`. Only the latest copy is kept. `.write-token` and `watcher.json` are left out. If the bundle folder is deleted, the UI shows the backup path. Copy that folder back to restore the bundle. Set `REVIEW_WORKSPACE_BACKUP_ROOT` to use another folder.
+
 ## Addressing review feedback in the target repo
 
 When a bundle has open change-request Comments, publishing it exports a self-describing hand-off file (`.review-feedback/<mr-number>-round<N>.md`) into the *target* repo's own working tree. A second skill, `skills/address-review-feedback/`, reads that file there, implements or explicitly skips each change-request against the target repo's own conventions, runs the target repo's own verification, writes a structured response file next to the hand-off file, and commits and pushes — then asks whether to spawn a background `review-workspace` agent for the next round.
