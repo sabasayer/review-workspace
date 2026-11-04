@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
-import { formatDiagnostic } from './bundle/format-diagnostic.ts'
+import { diagnosticToJson, formatDiagnostic, formatDiagnosticGroups } from './bundle/format-diagnostic.ts'
 import { validateBundle } from './bundle/validate-bundle.ts'
 import { publishBundleAndExportHandoff } from './bundle/publish-with-handoff.ts'
 import { checkRound, scaffoldNextRound } from './bundle/round.ts'
@@ -19,21 +19,44 @@ function flagValue(name: string): string | undefined {
   return index === -1 ? undefined : rest[index + 1]
 }
 
+const usage = `Usage: review-workspace <command> <bundle> [flags]
+Put the bundle path first. Put flags after it.
+
+Commands:
+  open <bundle> [--json]
+  publish <bundle> [--repo PATH]
+  serve <bundle> [--port N] [--rotate-token] [--repo PATH]
+  round <bundle> --live-head SHA --patch FILE
+
+Flags:
+  --help, -h  Print this text.`
+
+if (process.argv.slice(2).some((arg) => arg === '--help' || arg === '-h')) {
+  console.log(usage)
+  process.exit(0)
+}
+
 if (!command || !bundlePath) {
-  fail('Usage: review-workspace <open|publish|serve|round> <bundlePath> [--port N] [--rotate-token] [--repo PATH] [--live-head SHA --patch FILE]')
+  fail(usage)
 }
 
 if (command === 'open') {
   carryForwardChain(bundlePath)
   const result = validateBundle(bundlePath)
+  const asJson = rest.includes('--json')
   if (!result.valid) {
-    fail(`Cannot open bundle: ${result.blockingReason} — ${result.message}`)
+    if (!asJson) fail(`Cannot open bundle: ${result.blockingReason} — ${result.message}`)
+    console.log(JSON.stringify({ valid: false, blockingReason: result.blockingReason, message: result.message }))
+    process.exit(1)
   }
-  console.log('Bundle is valid.')
-  if (result.diagnostics?.length) {
-    console.log(`${result.diagnostics.length} diagnostic(s) found.`)
-    for (const diagnostic of result.diagnostics) {
-      console.log(`  ${formatDiagnostic(diagnostic)}`)
+  const diagnostics = result.diagnostics ?? []
+  if (asJson) {
+    console.log(JSON.stringify({ valid: true, diagnostics: diagnostics.map(diagnosticToJson) }))
+  } else {
+    console.log('Bundle is valid.')
+    if (diagnostics.length) {
+      console.log(`${diagnostics.length} diagnostic(s) found.`)
+      for (const line of formatDiagnosticGroups(diagnostics)) console.log(line)
     }
   }
 } else if (command === 'publish') {
@@ -56,7 +79,7 @@ if (command === 'open') {
   const liveHead = flagValue('--live-head')
   const patchPath = flagValue('--patch')
   if (!liveHead || !patchPath) {
-    fail('Usage: review-workspace round <bundlePath> --live-head <sha> --patch <patchFile>')
+    fail('Usage: review-workspace round <bundle> --live-head SHA --patch FILE')
   }
 
   const { needsNewRound } = checkRound(bundlePath, liveHead)

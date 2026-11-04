@@ -32,6 +32,8 @@ npx review-workspace serve .bundles/<name> --port 4317
 
 Opens the UI at `http://127.0.0.1:4317` (prints a write token too — needed only to raise/answer Questions, not to view). The token is saved in the bundle as `.write-token` and stays the same after a restart. Use `serve --rotate-token` to make a new one. One process, no separate dev server.
 
+To check a bundle, run `npx review-workspace open .bundles/<name>`. Add `--json` to get one JSON object for programs. Each Diagnostic has a `scope`. The scope `document` means you fix it in the review. The scope `bundle` means it is about the bundle files. A blocked bundle prints `{ valid: false, blockingReason, message }` and exits with code 1. Run `npx review-workspace --help` to see every command and flag.
+
 `serve` and `publish` also make a copy of the bundle in `~/.claude/review-workspace-backups/<bundle-name>-<hash>/`. Only the latest copy is kept. `.write-token` and `watcher.json` are left out. If the bundle folder is deleted, the UI shows the backup path. Copy that folder back to restore the bundle. Set `REVIEW_WORKSPACE_BACKUP_ROOT` to use another folder.
 
 ## Addressing review feedback in the target repo

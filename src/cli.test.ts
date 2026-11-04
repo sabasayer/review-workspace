@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,13 +14,8 @@ const chainedRound1Bundle = fileURLToPath(new URL('../fixtures/bundles/chained-m
 const chainedRound2Bundle = fileURLToPath(new URL('../fixtures/bundles/chained-mr-42-r2/', import.meta.url))
 
 function runCli(args: string[]) {
-  try {
-    const stdout = execFileSync(process.execPath, [cliPath, ...args], { encoding: 'utf-8' })
-    return { status: 0, stdout }
-  } catch (err) {
-    const e = err as { status: number; stdout: string; stderr: string }
-    return { status: e.status, stdout: e.stdout, stderr: e.stderr }
-  }
+  const { status, stdout, stderr } = spawnSync(process.execPath, [cliPath, ...args], { encoding: 'utf-8' })
+  return { status, stdout, stderr }
 }
 
 let workBundle: string
@@ -45,6 +40,135 @@ describe('cli', () => {
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('missing-asset: Missing asset: missing.png')
     expect(result.stdout).toContain('unresolved-target: Unresolved file target: file not found in patch')
+  })
+
+  describe('open grouping and --json', () => {
+    const baseDocument = { schemaVersion: 1, comparison: { base: 'abc1111', head: 'def2222' } }
+
+    function writeReview(extra: Record<string, unknown>) {
+      writeFileSync(join(workBundle, 'review.json'), JSON.stringify({ ...baseDocument, ...extra }))
+    }
+
+    const documentOnly = {
+      annotations: [{ id: 'an-1', target: { type: 'file', path: 'nope.ts' }, summary: 'Gone.' }],
+    }
+    const bundleOnly = {
+      evidence: [{ id: 'ev-1', kind: 'observed', description: 'Shot.', assetPath: 'missing.png' }],
+    }
+
+    it('open --json prints exactly one JSON object with kind, scope and message per diagnostic', () => {
+      const result = runCli(['open', diagnosticsBundle, '--json'])
+      expect(result.status).toBe(0)
+      const output = JSON.parse(result.stdout)
+      expect(output.valid).toBe(true)
+      expect(output.diagnostics.length).toBeGreaterThan(0)
+      for (const item of output.diagnostics) {
+        expect(typeof item.kind).toBe('string')
+        expect(['document', 'bundle']).toContain(item.scope)
+        expect(typeof item.message).toBe('string')
+      }
+      const missingAsset = output.diagnostics.find((d: { kind: string }) => d.kind === 'missing-asset')
+      expect(missingAsset).toMatchObject({
+        scope: 'bundle',
+        assetPath: 'missing.png',
+        message: 'Missing asset: missing.png',
+      })
+      const unresolved = output.diagnostics.find((d: { kind: string }) => d.kind === 'unresolved-target')
+      expect(unresolved.scope).toBe('document')
+    })
+
+    it('open --json gives invalid-field the formatted message and keeps instancePath', () => {
+      writeReview({ annotations: [{ id: 'an-1', target: { type: 'file', path: 'a.ts' }, summary: 5 }] })
+      const output = JSON.parse(runCli(['open', workBundle, '--json']).stdout)
+      const invalid = output.diagnostics.find((d: { kind: string }) => d.kind === 'invalid-field')
+      expect(invalid.message.startsWith('Invalid field (/annotations/0/summary): ')).toBe(true)
+      expect(invalid.instancePath).toBe('/annotations/0/summary')
+    })
+
+    it('open --json prints an empty diagnostics list for a valid bundle', () => {
+      const result = runCli(['open', validBundle, '--json'])
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout)).toEqual({ valid: true, diagnostics: [] })
+    })
+
+    it('open --json prints valid false with the reason on a broken bundle and exits 1', () => {
+      const result = runCli(['open', blockingBundle, '--json'])
+      expect(result.status).toBe(1)
+      const output = JSON.parse(result.stdout)
+      expect(output.valid).toBe(false)
+      expect(typeof output.blockingReason).toBe('string')
+      expect(typeof output.message).toBe('string')
+    })
+
+    it('open prints both group headings when both scopes have diagnostics', () => {
+      const result = runCli(['open', diagnosticsBundle])
+      expect(result.stdout).toContain('In the review (fix these):')
+      expect(result.stdout).toContain('In the bundle files:')
+      expect(result.stdout).toContain('  missing-asset: Missing asset: missing.png')
+      expect(result.stdout.indexOf('In the review (fix these):')).toBeLessThan(
+        result.stdout.indexOf('  unresolved-target: Unresolved file target: file not found in patch'),
+      )
+      expect(result.stdout.indexOf('In the bundle files:')).toBeLessThan(result.stdout.indexOf('  missing-asset:'))
+    })
+
+    it('open prints only the review heading when only document diagnostics exist', () => {
+      writeReview(documentOnly)
+      const result = runCli(['open', workBundle])
+      expect(result.stdout).toContain('In the review (fix these):')
+      expect(result.stdout).toContain('  unresolved-target: ')
+      expect(result.stdout).not.toContain('In the bundle files:')
+    })
+
+    it('open prints only the bundle heading when only bundle diagnostics exist', () => {
+      writeReview(bundleOnly)
+      const result = runCli(['open', workBundle])
+      expect(result.stdout).toContain('In the bundle files:')
+      expect(result.stdout).toContain('  missing-asset: Missing asset: missing.png')
+      expect(result.stdout).not.toContain('In the review (fix these):')
+    })
+
+    it('open prints no group heading when there are no diagnostics', () => {
+      const result = runCli(['open', validBundle])
+      expect(result.stdout).toBe('Bundle is valid.\n')
+    })
+
+    it.each(['--help', '-h'])('%s prints every command and flag to stdout and exits 0', (flag) => {
+      const result = runCli([flag])
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+      for (const line of [
+        '  open <bundle> [--json]',
+        '  publish <bundle> [--repo PATH]',
+        '  serve <bundle> [--port N] [--rotate-token] [--repo PATH]',
+        '  round <bundle> --live-head SHA --patch FILE',
+      ]) {
+        expect(result.stdout).toContain(line)
+      }
+    })
+
+    it.each([
+      ['open', '--help'],
+      ['serve', '--help'],
+      ['open', validBundle, '-h'],
+    ])('%s help flag anywhere prints the usage and exits 0', (...args) => {
+      const result = runCli(args)
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+      expect(result.stdout).toContain('  open <bundle> [--json]')
+    })
+
+    it('the usage says the bundle path comes before the flags', () => {
+      const result = runCli(['--help'])
+      expect(result.stdout).toContain('Put the bundle path first. Put flags after it.')
+      expect(runCli(['open', validBundle, '--json']).status).toBe(0)
+    })
+
+    it('a missing command exits 1 and prints the usage to stderr', () => {
+      const result = runCli([])
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('--json')
+      expect(result.stderr).toContain('--rotate-token')
+    })
   })
 
   it('open exits non-zero on a blocked bundle', () => {
