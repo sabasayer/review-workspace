@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/sabasayer/review-workspace/compare/v1.13.0...v1.14.0) (2026-11-04)
+
+
+### Features
+
+* **cli:** open --json, grouped diagnostics and --help ([0ac3888](https://github.com/sabasayer/review-workspace/commit/0ac38889c35832384eaaeb1af3fc3910d41912fc))
+
 # [1.13.0](https://github.com/sabasayer/review-workspace/compare/v1.12.0...v1.13.0) (2026-11-03)
 
 
