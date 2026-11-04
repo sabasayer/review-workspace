@@ -234,6 +234,15 @@ Write the document to `review.next.json`, then run `review-workspace publish <bu
 
 `review-workspace open <bundle>` prints each Diagnostic as `<code>: <message>`. A Diagnostic never blocks the bundle. Fix each one you can.
 
+Run `review-workspace open <bundle> --json` to get the Diagnostics as JSON. It prints one JSON object. Each item has `kind`, `scope` and `message`. The `message` is always the formatted text. A blocked bundle prints `{ valid: false, blockingReason, message }` and exits with code 1.
+
+Each Diagnostic has one scope:
+
+- `document`: it points into the review content you write. You fix these.
+- `bundle`: it is about the bundle's files or the patch. You cannot fix these in the review text.
+
+The plain `open` output shows the same two groups under two headings.
+
 | Code | Meaning | Fix |
 |------|---------|-----|
 | `invalid-field` | A field does not match the schema. | Correct the field named in the message. |

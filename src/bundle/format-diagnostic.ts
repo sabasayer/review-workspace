@@ -1,4 +1,5 @@
 import type { Diagnostic } from './diagnostics.ts'
+import { diagnosticScope, type DiagnosticScope } from './diagnostic-scope.ts'
 
 function describeDiagnostic(d: Diagnostic): string {
   switch (d.kind) {
@@ -33,4 +34,20 @@ function describeDiagnostic(d: Diagnostic): string {
 
 export function formatDiagnostic(d: Diagnostic): string {
   return `${d.kind}: ${describeDiagnostic(d)}`
+}
+
+export function diagnosticToJson(d: Diagnostic) {
+  return { ...d, scope: diagnosticScope(d), message: describeDiagnostic(d) }
+}
+
+const scopeHeadings: Record<DiagnosticScope, string> = {
+  document: 'In the review (fix these):',
+  bundle: 'In the bundle files:',
+}
+
+export function formatDiagnosticGroups(diagnostics: Diagnostic[]): string[] {
+  return (['document', 'bundle'] as const).flatMap((scope) => {
+    const lines = diagnostics.filter((d) => diagnosticScope(d) === scope).map((d) => `  ${formatDiagnostic(d)}`)
+    return lines.length ? [scopeHeadings[scope], ...lines] : []
+  })
 }
