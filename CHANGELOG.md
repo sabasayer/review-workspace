@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/sabasayer/review-workspace/compare/v1.14.0...v1.15.0) (2026-11-05)
+
+
+### Features
+
+* **ui:** separate tabs for Questions and Change-requests in the drawer ([05b5695](https://github.com/sabasayer/review-workspace/commit/05b5695c8b4524018ce94c578849a582e242b9bd))
+
 # [1.14.0](https://github.com/sabasayer/review-workspace/compare/v1.13.0...v1.14.0) (2026-11-04)
 
 
