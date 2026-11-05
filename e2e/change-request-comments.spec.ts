@@ -61,6 +61,7 @@ test.describe('change-request comments', () => {
     await panel.getByRole('button', { name: 'Change request' }).click()
     await panel.getByPlaceholder('What needs to change?').fill('Please extract this into a helper function')
     await panel.getByRole('button', { name: 'Raise change request' }).click()
+    await panel.getByRole('tab', { name: /^Change-requests/ }).click()
     await expect(panel.getByTestId('question-thread').filter({ hasText: 'Please extract this into a helper function' })).toBeVisible()
 
     const badge = fileHeader.getByRole('button', { name: /^Change request/ })
@@ -80,12 +81,13 @@ test.describe('change-request comments', () => {
     await page.screenshot({ path: join(docScreenshots, 'change-request-open.png'), fullPage: true })
 
     await badge.click()
+    await expect(panel.getByRole('tab', { name: /^Change-requests/ })).toHaveAttribute('aria-selected', 'true')
     const thread = panel.getByTestId('question-thread').filter({ hasText: 'Please extract this into a helper function' })
     await expect(thread).toHaveAttribute('data-state', 'none')
-    await thread.getByRole('button', { name: 'Mark resolved' }).click()
+    await thread.getByRole('button', { name: 'Mark as fixed' }).click()
 
     await expect(badge).toHaveText('✓')
-    await expect(thread.getByText('Resolved', { exact: true }).first()).toBeVisible()
+    await expect(thread.getByText('Fixed', { exact: true }).first()).toBeVisible()
 
     // A resolved change-request collapses by default and never disappears.
     const showButton = thread.getByRole('button', { name: 'Show', exact: true })
@@ -98,6 +100,6 @@ test.describe('change-request comments', () => {
     await showButton.click()
     await expect(thread.getByRole('button', { name: 'Hide' })).toBeVisible()
     await expect(expandedBody).toContainText('Please extract this into a helper function')
-    await expect(thread.getByRole('button', { name: 'Mark resolved' })).toHaveCount(0)
+    await expect(thread.getByRole('button', { name: 'Mark as fixed' })).toHaveCount(0)
   })
 })

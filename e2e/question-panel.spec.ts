@@ -60,17 +60,18 @@ test.describe('Question panel states', () => {
       await expect(badge.locator('[class*="i-lucide-"], svg').first()).toBeVisible()
     }
 
+    await panel.screenshot({ path: join(docScreenshots, 'question-panel-states.png') })
+    await panel.getByRole('tab', { name: /^Change-requests/ }).click()
     const change = thread('Please rename this.')
     await expect(change).toHaveAttribute('data-state', 'none')
     await expect(change.getByTestId('thread-state')).toHaveCount(0)
-    await panel.screenshot({ path: join(docScreenshots, 'question-panel-states.png') })
   })
 
   test('lists the newest Comment first', async ({ page }) => {
     await openReview(page, served.url)
     await panelButton(page).click()
     const bodies = await page.getByTestId('question-thread').locator('p.leading-relaxed').allTextContents()
-    expect(bodies.map((b) => b.trim())).toEqual(['Please rename this.', 'Answered question?', 'Answering question?', 'Waiting question?'])
+    expect(bodies.map((b) => b.trim())).toEqual(['Answered question?', 'Answering question?', 'Waiting question?'])
   })
 })
 

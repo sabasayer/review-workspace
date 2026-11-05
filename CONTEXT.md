@@ -57,7 +57,7 @@ An immutable Reviewer request for clarification. A follow-up is a new Question i
 _Avoid_: Chat message, prompt
 
 **Change-request**:
-A Comment that asks the author of the Comparison to change something. The Generator never answers it.
+A Comment that asks the author of the Comparison to change something. The Generator never answers it. The Reviewer marks it fixed after the author's change. Its status label is "Fixed". The field name stays `resolved`.
 _Avoid_: Fix request, task
 
 **Answer**:

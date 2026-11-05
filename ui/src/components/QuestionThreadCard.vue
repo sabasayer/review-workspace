@@ -86,7 +86,7 @@ const { isCollapsed, toggleExpanded } = useCollapsedComments()
       </p>
       <p v-if="comment.resolution" class="mt-1 text-muted">{{ comment.resolution.evidence }}</p>
       <p v-if="comment.kind === 'change-request' && comment.resolved" class="mt-1 text-muted italic">
-        Resolved {{ new Date(comment.resolvedAt!).toLocaleString() }}
+        Marked fixed {{ new Date(comment.resolvedAt!).toLocaleString() }}
       </p>
 
       <div v-if="entry.answer" class="mt-2 border-t border-default pt-2 text-muted">
@@ -99,7 +99,7 @@ const { isCollapsed, toggleExpanded } = useCollapsedComments()
 
       <div class="mt-2">
         <template v-if="comment.status === 'open' && comment.kind === 'change-request' && !comment.resolved">
-          <UButton size="xs" :disabled="busy || !hasToken" @click.stop="resolve(comment.id)">Mark resolved</UButton>
+          <UButton size="xs" :disabled="busy || !hasToken" @click.stop="resolve(comment.id)">Mark as fixed</UButton>
           <p v-if="!hasToken" class="mt-1 text-warning">Set your write token first (top right).</p>
         </template>
 

@@ -55,8 +55,8 @@ test.describe('suggestion buttons on a finding about the whole change', () => {
     await page.getByTestId('general-comment').filter({ hasText: SUGGESTION }).click()
     const thread = page.getByTestId('question-panel').getByTestId('question-thread').filter({ hasText: SUGGESTION })
     await expect(thread.getByText(/touched|gone/i)).toHaveCount(0)
-    await thread.getByRole('button', { name: 'Mark resolved' }).click()
-    await expect(thread.getByText('Resolved', { exact: true }).first()).toBeVisible()
+    await thread.getByRole('button', { name: 'Mark as fixed' }).click()
+    await expect(thread.getByText('Fixed', { exact: true }).first()).toBeVisible()
   })
 })
 

@@ -18,7 +18,7 @@ function ask() {
       type="button"
       class="grid h-[18px] w-[18px] place-items-center rounded-full border text-[10px] font-bold transition hover:scale-110"
       :class="commentBadgeClasses(q)"
-      :aria-label="`${q.kind === 'change-request' ? 'Change request' : 'Question'}${q.resolved ? ' (resolved)' : ''}: ${q.body}`"
+      :aria-label="`${q.kind === 'change-request' ? 'Change request' : 'Question'}${q.resolved ? (q.kind === 'change-request' ? ' (fixed)' : ' (resolved)') : ''}: ${q.body}`"
       @click="openThread(q)"
     >
       {{ commentGlyph(q) }}

@@ -56,6 +56,7 @@ test.describe('round-N carry-forward', () => {
     await page.getByRole('button', { name: 'Question panel' }).click()
     const dialog = page.getByTestId('question-panel')
     await expect(dialog).toBeVisible()
+    await dialog.getByRole('tab', { name: /^Change-requests/ }).click()
 
     await expect(dialog.getByText('Please add a backoff between retries.')).toBeVisible()
     await expect(dialog.getByText('Please redact PII before logging the message.')).toBeVisible()
@@ -82,12 +83,12 @@ test.describe('round-N carry-forward', () => {
     await expect(retryBadge).toBeVisible()
     await retryBadge.click()
 
-    await retryRow.getByRole('button', { name: 'Mark resolved' }).click()
+    await retryRow.getByRole('button', { name: 'Mark as fixed' }).click()
     await expect(retryBadge).toHaveText('✓')
 
     // Resolved comments persist and stay visible (collapsed) in this round's view too.
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('Please add a backoff between retries.')).toBeVisible()
-    await expect(dialog.getByText('Resolved', { exact: true }).first()).toBeVisible()
+    await expect(dialog.getByText('Fixed', { exact: true }).first()).toBeVisible()
   })
 })

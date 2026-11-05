@@ -6,6 +6,8 @@ import {
   panelState,
   resetPanel,
   selectComposerTarget,
+  setComposerKind,
+  setPanelTab,
   togglePanel,
 } from './question-panel-store.ts'
 import type { Question } from '../types.ts'
@@ -71,5 +73,67 @@ describe('question panel store', () => {
     expect(panelState.open).toBe(false)
     closePanel()
     expect(panelState.open).toBe(false)
+  })
+
+  it('starts on the Questions tab', () => {
+    expect(panelState.tab).toBe('question')
+  })
+
+  it('opens a change-request thread on the Change-requests tab', () => {
+    openThread(question({ kind: 'change-request' }))
+    expect(panelState.tab).toBe('change-request')
+    expect(panelState.open).toBe(true)
+  })
+
+  it('opens a Question thread on the Questions tab', () => {
+    setPanelTab('change-request')
+    openThread(question({ kind: 'question' }))
+    expect(panelState.tab).toBe('question')
+  })
+
+  it('opens the composer on the tab of the kind it raises', () => {
+    openComposer({ target: lineTarget, kind: 'change-request' })
+    expect(panelState.tab).toBe('change-request')
+    openComposer({ target: lineTarget, kind: 'question' })
+    expect(panelState.tab).toBe('question')
+  })
+
+  it('opens a default composer on the Questions tab', () => {
+    setPanelTab('change-request')
+    openComposer({ target: lineTarget })
+    expect(panelState.tab).toBe('question')
+  })
+
+  it('keeps the tab through a close and reopen', () => {
+    setPanelTab('change-request')
+    closePanel()
+    togglePanel()
+    expect(panelState.tab).toBe('change-request')
+  })
+
+  it('moves the composer kind to the tab when the draft is empty', () => {
+    setPanelTab('change-request')
+    expect(panelState).toMatchObject({ tab: 'change-request', kind: 'change-request' })
+    setPanelTab('question')
+    expect(panelState).toMatchObject({ tab: 'question', kind: 'question' })
+  })
+
+  it('keeps the composer kind when the draft has text', () => {
+    openComposer({ target: lineTarget, draft: 'About it: ', kind: 'question' })
+    setPanelTab('change-request')
+    expect(panelState).toMatchObject({ tab: 'change-request', kind: 'question', draft: 'About it: ' })
+  })
+
+  it('sets both the composer kind and the tab when the Reviewer picks a kind', () => {
+    setComposerKind('change-request')
+    expect(panelState).toMatchObject({ tab: 'change-request', kind: 'change-request' })
+    setComposerKind('question')
+    expect(panelState).toMatchObject({ tab: 'question', kind: 'question' })
+  })
+
+  it('switches the tab on a kind pick even when the draft has text', () => {
+    openComposer({ target: lineTarget, draft: 'About it: ', kind: 'question' })
+    setComposerKind('change-request')
+    expect(panelState).toMatchObject({ tab: 'change-request', kind: 'change-request', draft: 'About it: ' })
   })
 })

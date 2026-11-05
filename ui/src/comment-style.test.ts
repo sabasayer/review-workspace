@@ -92,24 +92,32 @@ describe('commentStatusColor', () => {
 })
 
 describe('commentStatusLabel', () => {
-  it('labels an open comment', () => {
-    expect(commentStatusLabel(comment({ status: 'open', resolved: false }))).toBe('Open')
+  it('labels an open Question', () => {
+    expect(commentStatusLabel(comment({ kind: 'question', status: 'open' }))).toBe('Open')
   })
 
-  it('labels a withdrawn comment', () => {
-    expect(commentStatusLabel(comment({ status: 'withdrawn', resolved: false }))).toBe('Withdrawn')
+  it('labels a withdrawn Question', () => {
+    expect(commentStatusLabel(comment({ kind: 'question', status: 'withdrawn' }))).toBe('Withdrawn')
   })
 
-  it('labels a resolved change-request', () => {
-    expect(commentStatusLabel(comment({ kind: 'change-request', status: 'open', resolved: true, resolvedAt: 't2' }))).toBe('Resolved')
+  it('labels an answered Question as Answered when hasAnswer is passed', () => {
+    expect(commentStatusLabel(comment({ kind: 'question', status: 'open' }), true)).toBe('Answered')
   })
 
-  it('labels an answered question as Answered when hasAnswer is passed', () => {
-    expect(commentStatusLabel(comment({ kind: 'question', status: 'open', resolved: false }), true)).toBe('Answered')
+  it('says an open change-request waits for the author', () => {
+    expect(commentStatusLabel(comment({ kind: 'change-request', status: 'open', resolved: false }))).toBe('Waiting for the author')
   })
 
-  it('prefers Resolved over Answered when both are true', () => {
-    expect(commentStatusLabel(comment({ kind: 'change-request', status: 'open', resolved: true }), true)).toBe('Resolved')
+  it('labels a resolved change-request Fixed', () => {
+    expect(commentStatusLabel(comment({ kind: 'change-request', status: 'open', resolved: true, resolvedAt: 't2' }))).toBe('Fixed')
+  })
+
+  it('prefers Fixed over Answered for a change-request', () => {
+    expect(commentStatusLabel(comment({ kind: 'change-request', status: 'open', resolved: true }), true)).toBe('Fixed')
+  })
+
+  it('keeps Withdrawn for a withdrawn change-request', () => {
+    expect(commentStatusLabel(comment({ kind: 'change-request', status: 'withdrawn', resolved: false }))).toBe('Withdrawn')
   })
 })
 
