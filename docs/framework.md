@@ -104,11 +104,13 @@ A Verification item has no Target of its own — only `targetIds` naming an Anno
 
 Questions are immutable append-only records. Corrections withdraw a Question and create a replacement. One Answer addresses exactly one Question; follow-ups are new Questions that may reference a prior Question.
 
-A Comment may use the general Target. It is never stale and has no Resolution status. Only the Reviewer resolves it. An open general change-request carries forward to the next round. The hand-off export lists it under "General". The skill never posts it inline. It posts a general MR comment only after the Reviewer says "send" and agrees to a general comment. See [ADR 0006](adr/0006-general-target-for-comments.md).
+A Comment may use the general Target. It is never stale and has no Resolution status. Only the Reviewer marks it fixed. An open general change-request carries forward to the next round. The hand-off export lists it under "General". The skill never posts it inline. It posts a general MR comment only after the Reviewer says "send" and agrees to a general comment. See [ADR 0006](adr/0006-general-target-for-comments.md).
 
 ### Question panel
 
 A docked side panel replaces the Question popover. It holds every Comment as one thread, newest first.
+
+- The panel has two tabs: Questions and Change-requests. The composer kind follows the active tab. The nav badge counts Questions only.
 
 - A Question shows its state in words and an icon: waiting (nobody picked it up), answering (the watcher works on it) or answered (an Answer exists). A change-request has no agent state.
 - The watcher writes `current` (the id of the Question it works on, or `null`) into `watcher.json`. The UI reads it through `GET /watcher`.

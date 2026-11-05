@@ -43,8 +43,12 @@ export function commentStatusColor(comment: Question, hasAnswer = false): 'succe
   return comment.status === 'open' ? 'warning' : 'neutral'
 }
 
-/** Badge label for a Comment's status, matching {@link commentStatusColor}'s cases. */
+/** Badge label for a Comment's status. A change-request reads Fixed when `resolved` is set; a Question reads Resolved, Answered or Open. */
 export function commentStatusLabel(comment: Question, hasAnswer = false): string {
+  if (comment.kind === 'change-request') {
+    if (comment.resolved) return 'Fixed'
+    return comment.status === 'open' ? 'Waiting for the author' : 'Withdrawn'
+  }
   if (comment.resolved) return 'Resolved'
   if (hasAnswer) return 'Answered'
   return comment.status === 'open' ? 'Open' : 'Withdrawn'

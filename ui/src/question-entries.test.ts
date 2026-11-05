@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildLineTarget,
+  countOpenChangeRequests,
   countOpenQuestions,
   fileLevelQuestions,
   generalComments,
@@ -56,16 +57,30 @@ describe('resolveQuestionEntries', () => {
     expect(countOpenQuestions(entries)).toBe(1)
   })
 
-  it('counts unresolved open change-request comments as open', () => {
+  it('does not count a change-request as an open Question', () => {
     const entries = resolveQuestionEntries(
       [file],
       [],
       [
         { id: 'q1', createdAt: 't', body: 'please fix', status: 'open', kind: 'change-request', resolved: false, originRound: 1 },
-        { id: 'q2', createdAt: 't', body: 'please fix 2', status: 'open', kind: 'change-request', resolved: true, resolvedAt: 't2', originRound: 1 },
+        { id: 'q2', createdAt: 't', body: 'why?', status: 'open', kind: 'question', resolved: false, originRound: 1 },
       ],
     )
     expect(countOpenQuestions(entries)).toBe(1)
+  })
+
+  it('counts open change-requests that are not fixed, and nothing else', () => {
+    const entries = resolveQuestionEntries(
+      [file],
+      [],
+      [
+        { id: 'q1', createdAt: 't', body: 'fix', status: 'open', kind: 'change-request', resolved: false, originRound: 1 },
+        { id: 'q2', createdAt: 't', body: 'fixed', status: 'open', kind: 'change-request', resolved: true, resolvedAt: 't2', originRound: 1 },
+        { id: 'q3', createdAt: 't', body: 'gone', status: 'withdrawn', kind: 'change-request', resolved: false, originRound: 1 },
+        { id: 'q4', createdAt: 't', body: 'why?', status: 'open', kind: 'question', resolved: false, originRound: 1 },
+      ],
+    )
+    expect(countOpenChangeRequests(entries)).toBe(1)
   })
 })
 

@@ -1,4 +1,5 @@
 import { isWatcherStale } from './bundle-status.ts'
+import { countOpenChangeRequests, countOpenQuestions, type QuestionEntry } from './question-entries.ts'
 import type { Question, Target, WatcherRead } from './types.ts'
 
 export type ThreadState = 'waiting' | 'answering' | 'answered'
@@ -80,3 +81,54 @@ export function panelBadge(newAnswers: number, openComments: number): PanelBadge
   if (openComments > 0) return { text: String(openComments), srText: `${openComments} open`, tone: 'open' }
   return null
 }
+
+export type PanelTab = 'question' | 'change-request'
+
+export function entriesForTab(entries: readonly QuestionEntry[], tab: PanelTab): QuestionEntry[] {
+  return entries.filter((e) => e.question.kind === tab)
+}
+
+export function openCountForTab(entries: readonly QuestionEntry[], tab: PanelTab): number {
+  const entriesOfTab = entriesForTab(entries, tab)
+  return tab === 'question' ? countOpenQuestions(entriesOfTab) : countOpenChangeRequests(entriesOfTab)
+}
+
+const TAB_ORDER: readonly PanelTab[] = ['question', 'change-request']
+
+const TAB_TEXT: Record<PanelTab, { label: string; emptyText: string }> = {
+  question: { label: 'Questions', emptyText: 'No questions raised yet.' },
+  'change-request': { label: 'Change-requests', emptyText: 'No change-requests raised yet.' },
+}
+
+export interface TabView {
+  value: PanelTab
+  label: string
+  count: number
+  emptyText: string
+}
+
+export function tabViews(entries: readonly QuestionEntry[]): TabView[] {
+  return TAB_ORDER.map((value) => ({ value, ...TAB_TEXT[value], count: openCountForTab(entries, value) }))
+}
+
+export function nextTab(current: PanelTab, key: string): PanelTab | null {
+  const index = TAB_ORDER.indexOf(current)
+  switch (key) {
+    case 'ArrowRight':
+      return TAB_ORDER[(index + 1) % TAB_ORDER.length]!
+    case 'ArrowLeft':
+      return TAB_ORDER[(index - 1 + TAB_ORDER.length) % TAB_ORDER.length]!
+    case 'Home':
+      return TAB_ORDER[0]!
+    case 'End':
+      return TAB_ORDER[TAB_ORDER.length - 1]!
+    default:
+      return null
+  }
+}
+
+export function tabId(tab: PanelTab): string {
+  return `question-tab-${tab}`
+}
+
+export const TAB_PANEL_ID = 'question-tabpanel'

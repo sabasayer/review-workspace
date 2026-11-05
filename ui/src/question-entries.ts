@@ -40,10 +40,11 @@ export function visibleQuestions(questions: readonly Question[]): Question[] {
 }
 
 export function countOpenQuestions(entries: QuestionEntry[]): number {
-  return entries.filter((e) => {
-    if (e.question.status !== 'open') return false
-    return e.question.kind === 'change-request' ? !e.question.resolved : !e.answer
-  }).length
+  return entries.filter((e) => e.question.kind === 'question' && e.question.status === 'open' && !e.answer).length
+}
+
+export function countOpenChangeRequests(entries: QuestionEntry[]): number {
+  return entries.filter((e) => e.question.kind === 'change-request' && e.question.status === 'open' && !e.question.resolved).length
 }
 
 export async function scrollToQuestionTarget(entry: QuestionEntry): Promise<void> {

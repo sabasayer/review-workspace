@@ -2,7 +2,7 @@
 import { computed, toRef } from 'vue'
 import type { CommentKind } from '../types.ts'
 import { draftRows } from '../change-request-draft.ts'
-import { panelState, selectComposerTarget } from '../composables/question-panel-store.ts'
+import { panelState, selectComposerTarget, setComposerKind } from '../composables/question-panel-store.ts'
 import { useQuestionThread } from '../composables/useQuestionThread.ts'
 import { composerChoices, targetKey } from '../question-panel.ts'
 
@@ -46,7 +46,7 @@ const kindOptions: Array<{ value: CommentKind; label: string }> = [
         :key="option.value"
         :variant="draftKind === option.value ? 'solid' : 'outline'"
         :color="option.value === 'change-request' ? 'error' : 'neutral'"
-        @click="draftKind = option.value"
+        @click="setComposerKind(option.value)"
       >
         {{ option.label }}
       </UButton>
