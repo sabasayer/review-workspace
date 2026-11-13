@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/sabasayer/review-workspace/compare/v1.15.0...v1.16.0) (2026-11-13)
+
+
+### Features
+
+* review a local branch before its MR exists ([36b668c](https://github.com/sabasayer/review-workspace/commit/36b668c40cf6fe9c3b42f5e66355f9132dd932f5))
+
 # [1.15.0](https://github.com/sabasayer/review-workspace/compare/v1.14.0...v1.15.0) (2026-11-05)
 
 
