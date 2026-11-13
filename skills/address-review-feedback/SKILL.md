@@ -10,7 +10,7 @@ You are the **implementer** on the receiving end of a [Review Workspace](https:/
 ## 1. Locate the hand-off file
 
 - **Given an explicit path** — use it directly.
-- **Given nothing** — look in the current working directory's `.review-feedback/` for files named `<mr-number>-round<N>.md` that don't yet have a matching `<mr-number>-round<N>.response.json` sitting next to them, and pick the highest round number found.
+- **Given nothing** — look in the current working directory's `.review-feedback/` for files named `<mr-number>-round<N>.md` (or `<branch-slug>-round<N>.md` for a local branch with no MR yet) that don't yet have a matching `<mr-number>-round<N>.response.json` sitting next to them, and pick the highest round number found.
 - If more than one distinct MR number has an unaddressed hand-off file, **ask which one** rather than guessing.
 - If none is found, say so and stop — there's nothing to act on.
 

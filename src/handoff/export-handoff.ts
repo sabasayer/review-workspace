@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isOpenChangeRequest } from '../questions/questions-log.ts'
 import type { Comment } from '../questions/types.ts'
+import { reviewKey } from '../schema/review-key.ts'
 import type { Annotation, Comparison } from '../schema/types.ts'
 import { buildHandoffMarkdown } from './build-handoff-markdown.ts'
 import { ensureGitExcludesHandoff } from './ensure-git-exclude.ts'
@@ -17,7 +18,7 @@ export interface ExportHandoffOptions {
 
 export interface ExportHandoffResult {
   written: boolean
-  skipped?: 'no-repo-path' | 'not-a-git-repo'
+  skipped?: 'no-repo-path' | 'not-a-git-repo' | 'no-review-key'
   filePath?: string
   repoPath?: string
 }
@@ -35,12 +36,14 @@ export async function exportHandoff(options: ExportHandoffOptions): Promise<Expo
   if (!hasOpenChangeRequest) return { written: false }
 
   if (!repoPath) return { written: false, skipped: 'no-repo-path' }
+  const key = reviewKey(comparison)
+  if (!key) return { written: false, skipped: 'no-review-key' }
   if (!ensureGitExcludesHandoff(repoPath)) return { written: false, skipped: 'not-a-git-repo' }
 
   const markdown = buildHandoffMarkdown({ bundlePath, comparison, round, comments, annotations })
   const feedbackDir = join(repoPath, '.review-feedback')
   mkdirSync(feedbackDir, { recursive: true })
-  const filePath = join(feedbackDir, `${comparison.number}-round${round}.md`)
+  const filePath = join(feedbackDir, `${key}-round${round}.md`)
   writeFileSync(filePath, markdown)
 
   return { written: true, filePath, repoPath }

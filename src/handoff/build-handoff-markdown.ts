@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { isOpenChangeRequest } from '../questions/questions-log.ts'
 import type { Comment } from '../questions/types.ts'
+import { reviewKey } from '../schema/review-key.ts'
 import type { Annotation, Comparison, Target } from '../schema/types.ts'
 
 export interface HandoffMarkdownInput {
@@ -90,7 +91,7 @@ function metadataBlock(input: HandoffMarkdownInput): string[] {
     'review-workspace-handoff',
     `bundlePath: ${resolve(input.bundlePath)}`,
     `repository: ${input.comparison.repository ?? ''}`,
-    `mrNumber: ${input.comparison.number ?? ''}`,
+    `mrNumber: ${reviewKey(input.comparison) ?? ''}`,
     `round: ${input.round}`,
     '-->',
   ]

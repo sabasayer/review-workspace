@@ -67,6 +67,20 @@ describe('exportHandoff', () => {
     expect(existsSync(join(repoDir, '.gitignore'))).toBe(false)
   })
 
+  it('names the file after the source branch when the Comparison has no MR number', async () => {
+    const local: Comparison = { base: 'aaa1111', head: 'bbb2222', repository: 'example/widgets', sourceBranch: 'feat/login' }
+    const result = await exportHandoff(baseOptions({ comparison: local, repoPath: repoDir }))
+
+    expect(result.filePath).toBe(join(repoDir, '.review-feedback', 'feat-login-round1.md'))
+    expect(readFileSync(result.filePath!, 'utf-8')).toContain('mrNumber: feat-login')
+  })
+
+  it('skips the export when the Comparison has no number and no source branch', async () => {
+    const result = await exportHandoff(baseOptions({ comparison: { base: 'a', head: 'b' }, repoPath: repoDir }))
+
+    expect(result).toEqual({ written: false, skipped: 'no-review-key' })
+  })
+
   it('skips the export with a reason when no repo path is given', async () => {
     const result = await exportHandoff(baseOptions())
 
