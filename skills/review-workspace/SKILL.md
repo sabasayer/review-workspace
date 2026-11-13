@@ -18,6 +18,7 @@ Determine the branch:
 - **New bundle** — no `review.json`/`changes.diff` exist yet at the given path. Run the Review Brief, Setup and "Reviewing an MR/PR end-to-end" below.
 - **Existing bundle** — `changes.diff` already exists. Analyze it and write/update `review.next.json`.
 - **New round** — a bundle for this MR exists, and `live-head.json` shows a `head` that differs from `comparison.head`. The Reviewer starts a new round by hand, after the UI banner "The MR has new commits since round N". Fetch the new full diff. Then run `npx review-workspace round <existingBundle> --live-head <sha> --patch <newDiffFile>` to scaffold the sibling `<name>-r{N}` bundle (own Comparison, and a `chain.json` that links back). Never edit the existing bundle in place. Treat the new round as an **Existing bundle** from here on.
+- **Local branch** — no MR or PR exists yet, for example a crew run at its captain test. Follow "Local branch mode" below in place of the forge steps.
 - **Improve** — feedback on an already-published bundle. Decide if it is artifact-specific or a durable framework change.
 
 ## Review Brief
@@ -97,6 +98,20 @@ For an **existing** bundle someone already reviews (Questions raised, feedback o
 ### Live head
 
 Whenever you open or update a bundle, fetch the MR's live head (`head_sha` from the metadata call, or `glab api .../merge_requests/<N>`). Write `live-head.json` into the bundle: `{ "head": "<sha>", "checkedAt": "<ISO date and time>" }`. If the fetch fails, do not write the file. The engine only reads this file.
+
+## Local branch mode
+
+Use this when the caller gives a repo path and a branch, and says there is no MR yet. Nothing is posted anywhere, so the local diff is enough.
+
+1. In the repo, run `git fetch origin`. The base is `git merge-base origin/<default branch> <branch>`. The head is `git rev-parse <branch>`.
+2. Write the diff: `git diff <base> <head> > /tmp/<repo-name>-<branch-slug>.diff`. This replaces the forge diff in Part 1 step 1.
+3. Skip every forge step: MR text, discussions, pipeline jobs, uploads, Stack, and posting comments.
+4. `review.json` gets `{ schemaVersion: 2, comparison: { repository, base, head, title, sourceBranch, targetBranch } }`. Leave out `number` and `url`. `repository` is the remote path, like `group/project`. `title` is the last commit subject, or the caller's title.
+5. Live head: run `git rev-parse <branch>` in place of the forge call.
+6. The bundle name is `<repo-name>-<branch-slug>`. The hand-off file is `.review-feedback/<branch-slug>-round<N>.md`. The engine names it from `sourceBranch` when there is no `number`.
+7. Changed images: take both blobs with `git show <sha>:<path>`.
+
+Everything else (Generator, Publish, rounds, hand-off) works as for an MR.
 
 ## Generate
 

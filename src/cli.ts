@@ -72,6 +72,8 @@ if (command === 'open') {
     console.log(`Hand-off file written: ${result.handoff.filePath}`)
   } else if (result.handoff?.skipped === 'no-repo-path') {
     console.log('Hand-off skipped: pass --repo <path> to export the open change-requests.')
+  } else if (result.handoff?.skipped === 'no-review-key') {
+    console.log('Hand-off skipped: the Comparison has no number and no sourceBranch to name the file.')
   } else if (result.handoff?.skipped === 'not-a-git-repo') {
     console.log('Hand-off skipped: the --repo path is not a git repository.')
   }

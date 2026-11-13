@@ -28,13 +28,15 @@ export interface ScaffoldNextRoundOptions {
 
 /**
  * A stable cross-round identity for one MR: repo slug + number, e.g.
- * "group/project!367".
+ * "group/project!367". A local branch with no MR yet uses
+ * "group/project@branch".
  */
 export function mrKeyFor(comparison: Comparison): string {
-  if (!comparison.repository || !comparison.number) {
-    throw new Error('comparison.repository and comparison.number are required to compute an mrKey')
+  if (!comparison.repository || !(comparison.number || comparison.sourceBranch)) {
+    throw new Error('comparison.repository and comparison.number (or sourceBranch) are required to compute an mrKey')
   }
-  return `${comparison.repository}!${comparison.number}`
+  if (comparison.number) return `${comparison.repository}!${comparison.number}`
+  return `${comparison.repository}@${comparison.sourceBranch}`
 }
 
 function readReviewDocument(bundlePath: string): ReviewDocument {

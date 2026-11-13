@@ -30,6 +30,10 @@ describe('mrKeyFor', () => {
     expect(mrKeyFor({ base: 'a', head: 'b', repository: 'example/widgets', number: '42' })).toBe('example/widgets!42')
   })
 
+  it('uses the source branch for a local branch with no MR number', () => {
+    expect(mrKeyFor({ base: 'a', head: 'b', repository: 'example/widgets', sourceBranch: 'feat/x' })).toBe('example/widgets@feat/x')
+  })
+
   it('throws when repository or number is missing', () => {
     expect(() => mrKeyFor({ base: 'a', head: 'b' })).toThrow(/repository and comparison.number/)
     expect(() => mrKeyFor({ base: 'a', head: 'b', repository: 'example/widgets' })).toThrow()
